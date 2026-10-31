@@ -1,0 +1,260 @@
+import { useEffect, useRef } from 'react'
+import { categoryOf } from '../lib/constants'
+import { brl, currentMonth, monthLabel, shiftMonth, shortDate } from '../lib/format'
+
+const ICONS = {
+  home: <path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />,
+  list: <path d="M4 6h16M4 12h16M4 18h10" />,
+  chart: <path d="M4 20V4M4 20h16M8 16l4-5 3 3 5-7" />,
+  sliders: (
+    <>
+      <path d="M4 7h10M18 7h2M4 17h2M10 17h10" />
+      <circle cx="16" cy="7" r="2" />
+      <circle cx="8" cy="17" r="2" />
+    </>
+  ),
+  plus: <path d="M12 5v14M5 12h14" />,
+  left: <path d="M15 5l-7 7 7 7" />,
+  right: <path d="M9 5l7 7-7 7" />,
+  close: <path d="M6 6l12 12M18 6L6 18" />,
+}
+
+export function Icon({ name, size = 24 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {ICONS[name]}
+    </svg>
+  )
+}
+
+export function Brand({ small }) {
+  return (
+    <span className={`brand ${small ? 'brand-small' : ''}`}>
+      <img src="/icon.svg" alt="" width={small ? 32 : 44} height={small ? 32 : 44} />
+      <span>Nosso Bolso</span>
+    </span>
+  )
+}
+
+/** Janela de diálogo nativa: fecha com Esc e prende o foco sozinha. */
+export function Modal({ title, onClose, children }) {
+  const ref = useRef(null)
+
+  useEffect(() => {
+    const dialog = ref.current
+    if (dialog && !dialog.open) dialog.showModal()
+    return () => {
+      if (dialog && dialog.open) dialog.close()
+    }
+  }, [])
+
+  return (
+    <dialog
+      ref={ref}
+      className="modal"
+      aria-labelledby="modal-title"
+      onCancel={(e) => {
+        e.preventDefault()
+        onClose()
+      }}
+      onClick={(e) => {
+        if (e.target === ref.current) onClose()
+      }}
+    >
+      <div className="modal-body">
+        <header className="modal-head">
+          <h2 id="modal-title">{title}</h2>
+          <button type="button" className="icon-btn" onClick={onClose} aria-label="Fechar">
+            <Icon name="close" />
+          </button>
+        </header>
+        {children}
+      </div>
+    </dialog>
+  )
+}
+
+export function Field({ label, hint, children }) {
+  return (
+    <label className="field">
+      <span className="field-label">{label}</span>
+      {children}
+      {hint && <small className="field-hint">{hint}</small>}
+    </label>
+  )
+}
+
+export function MoneyField({ label, value, onChange, prefix = 'R$', hint, autoFocus, big }) {
+  return (
+    <Field label={label} hint={hint}>
+      <span className={`money ${big ? 'money-big' : ''}`}>
+        <span className="money-prefix" aria-hidden="true">
+          {prefix}
+        </span>
+        <input
+          inputMode="decimal"
+          autoComplete="off"
+          placeholder="0,00"
+          value={value}
+          autoFocus={autoFocus}
+          onChange={(e) => onChange(e.target.value.replace(/[^\d.,]/g, ''))}
+        />
+      </span>
+    </Field>
+  )
+}
+
+export function Segmented({ legend, name, value, onChange, options }) {
+  return (
+    <fieldset className="seg">
+      <legend className="sr-only">{legend}</legend>
+      {options.map((o) => (
+        <label key={o.value} className={`seg-item ${o.tone ? `tone-${o.tone}` : ''}`}>
+          <input
+            type="radio"
+            name={name}
+            value={o.value}
+            checked={value === o.value}
+            onChange={() => onChange(o.value)}
+          />
+          <span>{o.label}</span>
+        </label>
+      ))}
+    </fieldset>
+  )
+}
+
+export function ChoiceGrid({ legend, name, items, value, onChange }) {
+  return (
+    <fieldset className="choices">
+      <legend className="field-label">{legend}</legend>
+      <div className="choices-grid">
+        {items.map((c) => (
+          <label key={c.id} className="choice">
+            <input
+              type="radio"
+              name={name}
+              value={c.id}
+              checked={value === c.id}
+              onChange={() => onChange(c.id)}
+            />
+            <span>
+              <span className="choice-icon" aria-hidden="true">
+                {c.icon}
+              </span>
+              <span className="choice-label">{c.label}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  )
+}
+
+export function MonthNav({ month, onChange }) {
+  return (
+    <div className="monthnav">
+      <button
+        type="button"
+        className="icon-btn"
+        onClick={() => onChange(shiftMonth(month, -1))}
+        aria-label="Mês anterior"
+      >
+        <Icon name="left" />
+      </button>
+      <span className="monthnav-label" aria-live="polite">
+        {monthLabel(month)}
+      </span>
+      <button
+        type="button"
+        className="icon-btn"
+        onClick={() => onChange(shiftMonth(month, 1))}
+        disabled={month >= currentMonth()}
+        aria-label="Próximo mês"
+      >
+        <Icon name="right" />
+      </button>
+    </div>
+  )
+}
+
+export const TEXT_SIZES = [
+  { value: 'normal', label: 'Normal', percent: 100 },
+  { value: 'grande', label: 'Grande', percent: 120 },
+  { value: 'enorme', label: 'Muito grande', percent: 140 },
+]
+
+export function TextSize({ value, onChange, name = 'textsize' }) {
+  return (
+    <fieldset className="textsize">
+      <legend className="sr-only">Tamanho da letra</legend>
+      {TEXT_SIZES.map((s, i) => (
+        <label key={s.value} className="textsize-item">
+          <input
+            type="radio"
+            name={name}
+            value={s.value}
+            checked={value === s.value}
+            onChange={() => onChange(s.value)}
+          />
+          <span style={{ fontSize: `${0.9 + i * 0.2}rem` }}>
+            A<span className="sr-only"> {s.label}</span>
+          </span>
+        </label>
+      ))}
+    </fieldset>
+  )
+}
+
+export function Tile({ label, value, tone }) {
+  return (
+    <div className="tile">
+      <span className="tile-label">{label}</span>
+      <strong className={`tile-value ${tone || ''}`}>{value}</strong>
+    </div>
+  )
+}
+
+export function EmptyState({ title, children, action }) {
+  return (
+    <div className="empty">
+      <p className="empty-title">{title}</p>
+      {children && <p className="empty-text">{children}</p>}
+      {action}
+    </div>
+  )
+}
+
+export function TxRow({ tx, onClick }) {
+  const c = categoryOf(tx.category)
+  const isIn = tx.type === 'entrada'
+  return (
+    <button type="button" className="row" onClick={() => onClick(tx)}>
+      <span className="row-icon" aria-hidden="true">
+        {c.icon}
+      </span>
+      <span className="row-main">
+        <span className="row-title">{tx.description || c.label}</span>
+        <span className="row-sub">
+          {tx.description ? `${c.label} · ` : ''}
+          {shortDate(tx.date)}
+        </span>
+      </span>
+      <span className={`row-amount ${isIn ? 'pos' : 'neg'}`}>
+        {isIn ? '+ ' : '− '}
+        {brl(tx.amount)}
+      </span>
+    </button>
+  )
+}

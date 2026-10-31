@@ -1,0 +1,11 @@
+{
+  "name": "Nosso Bolso",
+  "short_name": "Nosso Bolso",
+  "description": "Controle de gastos e investimentos da família.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F2F5F3",
+  "theme_color": "#0E5A57",
+  "lang": "pt-BR",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
