@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { Donut, EvolutionLines, LINE_INVESTED, LINE_VALUE } from '../components/charts'
+import PatrimonioNav from '../components/PatrimonioNav'
 import { EmptyState, Icon } from '../components/ui'
 import { allocation, evolution, investValue, lastMonths, portfolio } from '../lib/calc'
 import { brl, currentMonth, monthShort, pct, shortDate, usd } from '../lib/format'
@@ -29,6 +30,8 @@ export default function Investments({ data, rate, onAdd, onEdit }) {
 
   return (
     <>
+      <PatrimonioNav current="investimentos" />
+
       <header className="page-head">
         <h1>Investimentos</h1>
         <button type="button" className="btn primary" onClick={onAdd}>

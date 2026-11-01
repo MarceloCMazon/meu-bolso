@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
 import { MonthlyBars, IN_COLOR, OUT_COLOR } from '../components/charts'
+import GoalCard from '../components/GoalCard'
 import { EmptyState, MonthNav, TxRow } from '../components/ui'
-import { lastMonths, monthTotals, portfolio } from '../lib/calc'
+import { goalProgress, lastMonths, monthTotals, portfolio } from '../lib/calc'
 import { brl, monthKey, monthName, monthShort, pct } from '../lib/format'
 
 function Ruler({ income, spent }) {
@@ -41,6 +42,14 @@ export default function Home({ data, month, setMonth, rate, onEdit, onAdd }) {
   const recent = useMemo(
     () => data.transactions.filter((t) => monthKey(t.date) === month).slice(0, 5),
     [data.transactions, month],
+  )
+
+  const activeGoals = useMemo(
+    () =>
+      data.goals
+        .map((g) => ({ goal: g, progress: goalProgress(g, data.transactions, data.investments) }))
+        .filter((i) => i.progress.active),
+    [data.goals, data.transactions, data.investments],
   )
 
   const negative = totals.balance < 0
@@ -90,6 +99,33 @@ export default function Home({ data, month, setMonth, rate, onEdit, onAdd }) {
         </section>
 
         <div className="stack">
+          {data.goalsReady && (
+            <section className="card" aria-labelledby="goals-title">
+              <h2 id="goals-title">Suas metas</h2>
+              {activeGoals.length === 0 ? (
+                <EmptyState
+                  title="Você ainda não tem metas."
+                  action={
+                    <a className="btn secondary" href="#/metas">
+                      Criar uma meta
+                    </a>
+                  }
+                >
+                  Defina um limite de gastos ou quanto quer investir por mês.
+                </EmptyState>
+              ) : (
+                <>
+                  {activeGoals.slice(0, 3).map(({ goal, progress }) => (
+                    <GoalCard key={goal.id} goal={goal} progress={progress} compact />
+                  ))}
+                  <a className="link" href="#/metas">
+                    Ver todas as metas
+                  </a>
+                </>
+              )}
+            </section>
+          )}
+
           <section className="card" aria-labelledby="inv-title">
             <h2 id="inv-title">Investimentos</h2>
             {data.investments.length === 0 ? (

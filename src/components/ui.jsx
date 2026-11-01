@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import { categoryOf } from '../lib/constants'
-import { brl, currentMonth, monthLabel, shiftMonth, shortDate } from '../lib/format'
+import { brl, currentMonth, monthLabel, parseMoney, shiftMonth, shortDate, toInput } from '../lib/format'
 
 const ICONS = {
   home: <path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />,
@@ -13,6 +13,8 @@ const ICONS = {
       <circle cx="8" cy="17" r="2" />
     </>
   ),
+  minus: <path d="M5 12h14" />,
+  flag: <path d="M5 21V4M5 4h11l-2 4 2 4H5" />,
   plus: <path d="M12 5v14M5 12h14" />,
   left: <path d="M15 5l-7 7 7 7" />,
   right: <path d="M9 5l7 7-7 7" />,
@@ -112,6 +114,56 @@ export function MoneyField({ label, value, onChange, prefix = 'R$', hint, autoFo
         />
       </span>
     </Field>
+  )
+}
+
+/** Campo de valor com botões − e +, como nos simuladores de banco. */
+export function Stepper({ label, value, onChange, step, prefix = 'R$', hint }) {
+  const id = useId()
+  const move = (dir) => {
+    const current = parseMoney(value)
+    const base = Number.isFinite(current) ? current : 0
+    const next = Math.max(0, Math.round((base + dir * step) * 100) / 100)
+    onChange(toInput(next))
+  }
+  return (
+    <div className="field">
+      <label className="field-label" htmlFor={id}>
+        {label}
+      </label>
+      <div className="stepper">
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={() => move(-1)}
+          aria-label={`Diminuir ${brl(step)}`}
+        >
+          <Icon name="minus" />
+        </button>
+        <span className="money money-big">
+          <span className="money-prefix" aria-hidden="true">
+            {prefix}
+          </span>
+          <input
+            id={id}
+            inputMode="decimal"
+            autoComplete="off"
+            placeholder="0"
+            value={value}
+            onChange={(e) => onChange(e.target.value.replace(/[^\d.,]/g, ''))}
+          />
+        </span>
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={() => move(1)}
+          aria-label={`Aumentar ${brl(step)}`}
+        >
+          <Icon name="plus" />
+        </button>
+      </div>
+      {hint && <small className="field-hint">{hint}</small>}
+    </div>
   )
 }
 
@@ -222,6 +274,16 @@ export function Tile({ label, value, tone }) {
     <div className="tile">
       <span className="tile-label">{label}</span>
       <strong className={`tile-value ${tone || ''}`}>{value}</strong>
+    </div>
+  )
+}
+
+/** Barra de progresso de uma meta, sempre acompanhada do texto (nunca só cor). */
+export function GoalBar({ progress }) {
+  const { share, state } = progress
+  return (
+    <div className="goalbar" role="img" aria-label={`${Math.round(share * 100)}% da meta`}>
+      <div className={`goalbar-fill state-${state}`} style={{ width: `${Math.max(share * 100, share > 0 ? 3 : 0)}%` }} />
     </div>
   )
 }

@@ -1,21 +1,27 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import InvestmentForm from './components/InvestmentForm'
 import TransactionForm from './components/TransactionForm'
+import GoalForm from './components/GoalForm'
+import AssetForm from './components/AssetForm'
 import { Brand, EmptyState, Icon, TextSize } from './components/ui'
 import { useLocalSetting, useRoute, useUsdRate } from './hooks'
 import * as api from './lib/api'
 import { currentMonth, todayISO } from './lib/format'
 import { isConfigured, supabase } from './lib/supabase'
 import Auth, { NewPassword, SetupNeeded } from './pages/Auth'
+import Goals from './pages/Goals'
 import Home from './pages/Home'
 import Investments from './pages/Investments'
+import Patrimonio from './pages/Patrimonio'
+import Simulator from './pages/Simulator'
 import Settings from './pages/Settings'
 import Transactions from './pages/Transactions'
 
 const NAV = [
   { id: 'inicio', label: 'Início', icon: 'home' },
   { id: 'gastos', label: 'Gastos', icon: 'list' },
-  { id: 'investimentos', label: 'Investimentos', icon: 'chart' },
+  { id: 'patrimonio', label: 'Patrimônio', icon: 'chart', also: ['investimentos', 'simulador'] },
+  { id: 'metas', label: 'Metas', icon: 'flag' },
   { id: 'ajustes', label: 'Ajustes', icon: 'sliders' },
 ]
 
@@ -60,12 +66,23 @@ function Shell({ session }) {
   const [theme, setTheme] = useLocalSetting('nb-theme', 'auto')
 
   const [month, setMonth] = useState(currentMonth())
-  const [data, setData] = useState({ transactions: [], investments: [], history: [] })
+  const [data, setData] = useState({
+    transactions: [],
+    investments: [],
+    history: [],
+    goals: [],
+    goalsReady: true,
+    assets: [],
+    assetHistory: [],
+    patrimonioReady: true,
+  })
   const [status, setStatus] = useState('loading')
   const [errorMsg, setErrorMsg] = useState('')
   const [toast, setToast] = useState('')
   const [txModal, setTxModal] = useState(null)
   const [invModal, setInvModal] = useState(null)
+  const [goalModal, setGoalModal] = useState(null)
+  const [assetModal, setAssetModal] = useState(null)
   const toastTimer = useRef(0)
   const snapshotKey = useRef('')
 
@@ -147,6 +164,34 @@ function Shell({ session }) {
     notify('Investimento excluído.')
   }
 
+  async function saveAsset(payload, id) {
+    await api.saveAsset(userId, payload, id)
+    await reload()
+    setAssetModal(null)
+    notify('Item salvo.')
+  }
+
+  async function deleteAsset(id) {
+    await api.deleteAsset(id)
+    await reload()
+    setAssetModal(null)
+    notify('Item excluído.')
+  }
+
+  async function saveGoal(payload, id) {
+    await api.saveGoal(userId, payload, id)
+    await reload()
+    setGoalModal(null)
+    notify('Meta salva.')
+  }
+
+  async function deleteGoal(id) {
+    await api.deleteGoal(id)
+    await reload()
+    setGoalModal(null)
+    notify('Meta excluída.')
+  }
+
   const openNewTx = (type) => setTxModal({ type })
   const openEditTx = (tx) => setTxModal({ tx })
   const signOut = () => supabase.auth.signOut()
@@ -182,6 +227,19 @@ function Shell({ session }) {
         onEdit={(inv) => setInvModal({ inv })}
       />
     )
+  } else if (route === 'patrimonio') {
+    content = (
+      <Patrimonio
+        data={data}
+        rate={rate}
+        onAdd={() => setAssetModal({})}
+        onEdit={(asset) => setAssetModal({ asset })}
+      />
+    )
+  } else if (route === 'simulador') {
+    content = <Simulator data={data} rate={rate} />
+  } else if (route === 'metas') {
+    content = <Goals data={data} onAdd={() => setGoalModal({})} onEdit={(goal) => setGoalModal({ goal })} />
   } else if (route === 'ajustes') {
     content = (
       <Settings
@@ -207,12 +265,17 @@ function Shell({ session }) {
     )
   }
 
-  const navLinks = NAV.map((n) => (
-    <a key={n.id} href={`#/${n.id}`} aria-current={route === n.id ? 'page' : undefined}>
-      <Icon name={n.icon} size={26} />
-      <span>{n.label}</span>
-    </a>
-  ))
+  const renderNav = (useShort) =>
+    NAV.map((n) => (
+      <a
+        key={n.id}
+        href={`#/${n.id}`}
+        aria-current={route === n.id || n.also?.includes(route) ? 'page' : undefined}
+      >
+        <Icon name={n.icon} size={26} />
+        <span>{useShort ? n.short || n.label : n.label}</span>
+      </a>
+    ))
 
   return (
     <div className="app">
@@ -223,7 +286,7 @@ function Shell({ session }) {
       <aside className="side">
         <Brand />
         <nav aria-label="Principal" className="side-nav">
-          {navLinks}
+          {renderNav(false)}
         </nav>
         <div className="side-foot">
           <p className="side-label">Tamanho da letra</p>
@@ -241,7 +304,7 @@ function Shell({ session }) {
       </main>
 
       <nav aria-label="Principal" className="tabbar">
-        {navLinks}
+        {renderNav(true)}
       </nav>
 
       {(route === 'inicio' || route === 'gastos') && status === 'ready' && (
@@ -262,6 +325,22 @@ function Shell({ session }) {
           onSave={saveTx}
           onDelete={deleteTx}
           onClose={() => setTxModal(null)}
+        />
+      )}
+      {assetModal && (
+        <AssetForm
+          initial={assetModal.asset}
+          onSave={saveAsset}
+          onDelete={deleteAsset}
+          onClose={() => setAssetModal(null)}
+        />
+      )}
+      {goalModal && (
+        <GoalForm
+          initial={goalModal.goal}
+          onSave={saveGoal}
+          onDelete={deleteGoal}
+          onClose={() => setGoalModal(null)}
         />
       )}
       {invModal && (

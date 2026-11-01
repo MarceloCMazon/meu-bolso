@@ -90,6 +90,75 @@ export function MonthlyBars({ data, ariaLabel }) {
   )
 }
 
+/** Uma linha só: crescimento do patrimônio. */
+export function NetWorthLine({ data, ariaLabel }) {
+  return (
+    <div className="chart" role="img" aria-label={ariaLabel}>
+      <ResponsiveContainer width="100%" height={240}>
+        <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+          <CartesianGrid vertical={false} stroke="currentColor" strokeOpacity={0.18} />
+          <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: 'currentColor', fontSize: 14 }} />
+          <YAxis
+            width={60}
+            tickLine={false}
+            axisLine={false}
+            tick={{ fill: 'currentColor', fontSize: 13 }}
+            tickFormatter={compact}
+          />
+          <Tooltip formatter={(v) => brl(v)} contentStyle={tooltipStyle} />
+          <Line
+            type="monotone"
+            dataKey="Patrimônio"
+            stroke="#1F8A84"
+            strokeWidth={3.5}
+            dot={{ r: 4 }}
+            isAnimationActive={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+/** Simulador: quanto foi guardado e quanto vira com o rendimento. */
+export function GrowthChart({ data, ariaLabel }) {
+  return (
+    <div className="chart" role="img" aria-label={ariaLabel}>
+      <ResponsiveContainer width="100%" height={260}>
+        <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+          <CartesianGrid vertical={false} stroke="currentColor" strokeOpacity={0.18} />
+          <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: 'currentColor', fontSize: 13 }} />
+          <YAxis
+            width={60}
+            tickLine={false}
+            axisLine={false}
+            tick={{ fill: 'currentColor', fontSize: 13 }}
+            tickFormatter={compact}
+          />
+          <Tooltip formatter={(v) => brl(v)} contentStyle={tooltipStyle} />
+          <Line
+            type="monotone"
+            dataKey="Você guardou"
+            stroke="#7F95A0"
+            strokeWidth={3}
+            strokeDasharray="6 5"
+            dot={false}
+            isAnimationActive={false}
+          />
+          <Line
+            type="monotone"
+            dataKey="Com rendimento"
+            stroke="#1F8A84"
+            strokeWidth={3.5}
+            dot={false}
+            isAnimationActive={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
 export const LINE_INVESTED = '#7F95A0'
 export const LINE_VALUE = '#1F8A84'
 

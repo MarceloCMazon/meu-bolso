@@ -40,7 +40,75 @@ export async function loadAll() {
       .limit(5000),
   ])
   for (const r of [t, i, h]) if (r.error) throw r.error
-  return { transactions: t.data, investments: i.data, history: h.data }
+
+  // Metas são opcionais: se a tabela ainda não existe, o resto do site segue funcionando.
+  const g = await supabase.from('goals').select('*').order('created_at', { ascending: true })
+  // Patrimônio também é opcional pelo mesmo motivo.
+  const [a, ah] = await Promise.all([
+    supabase.from('assets').select('*').order('created_at', { ascending: true }),
+    supabase.from('asset_history').select('*').order('recorded_at', { ascending: true }).limit(5000),
+  ])
+  const patrimonioReady = !a.error && !ah.error
+  return {
+    assets: patrimonioReady ? a.data : [],
+    assetHistory: patrimonioReady ? ah.data : [],
+    patrimonioReady,
+    transactions: t.data,
+    investments: i.data,
+    history: h.data,
+    goals: g.error ? [] : g.data,
+    goalsReady: !g.error,
+  }
+}
+
+async function setAssetToday(userId, assetId, value) {
+  const today = todayISO()
+  check(await supabase.from('asset_history').delete().eq('asset_id', assetId).eq('recorded_at', today))
+  check(
+    await supabase
+      .from('asset_history')
+      .insert({ user_id: userId, asset_id: assetId, value, recorded_at: today }),
+  )
+}
+
+export async function saveAsset(userId, payload, id) {
+  const today = todayISO()
+  if (!id) {
+    const { data } = check(
+      await supabase
+        .from('assets')
+        .insert({ ...payload, user_id: userId })
+        .select()
+        .single(),
+    )
+    if (payload.since < today) {
+      check(
+        await supabase.from('asset_history').insert({
+          user_id: userId,
+          asset_id: data.id,
+          value: payload.value,
+          recorded_at: payload.since,
+        }),
+      )
+    }
+    await setAssetToday(userId, data.id, payload.value)
+  } else {
+    check(await supabase.from('assets').update(payload).eq('id', id))
+    await setAssetToday(userId, id, payload.value)
+  }
+}
+
+export async function deleteAsset(id) {
+  check(await supabase.from('assets').delete().eq('id', id))
+}
+
+export async function saveGoal(userId, payload, id) {
+  if (id) check(await supabase.from('goals').update(payload).eq('id', id))
+  else check(await supabase.from('goals').insert({ ...payload, user_id: userId }))
+}
+
+export async function deleteGoal(id) {
+  check(await supabase.from('goals').delete().eq('id', id))
 }
 
 export async function addTransaction(userId, payload) {

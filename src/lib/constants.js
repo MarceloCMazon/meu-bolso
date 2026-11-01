@@ -73,3 +73,16 @@ export const KINDS = [
 ]
 
 export const kindOf = (id) => KINDS.find((k) => k.id === id) || KINDS[3]
+
+export const ASSET_TYPES = [
+  { id: 'imovel', kind: 'bem', label: 'Casa ou terreno', icon: '🏠' },
+  { id: 'veiculo', kind: 'bem', label: 'Carro ou moto', icon: '🚗' },
+  { id: 'conta', kind: 'bem', label: 'Dinheiro guardado', icon: '💰' },
+  { id: 'outros_bem', kind: 'bem', label: 'Outros bens', icon: '📦' },
+  { id: 'financiamento', kind: 'divida', label: 'Financiamento', icon: '🏦' },
+  { id: 'cartao', kind: 'divida', label: 'Cartão de crédito', icon: '💳' },
+  { id: 'emprestimo', kind: 'divida', label: 'Empréstimo', icon: '🧾' },
+  { id: 'outras_divida', kind: 'divida', label: 'Outras dívidas', icon: '📦' },
+]
+
+export const assetTypeOf = (id) => ASSET_TYPES.find((t) => t.id === id) || ASSET_TYPES[3]

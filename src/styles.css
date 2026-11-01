@@ -216,7 +216,7 @@ a {
   inset: auto 0 0 0;
   z-index: 20;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   background: var(--surface);
   border-top: 1px solid var(--line);
   padding-bottom: env(safe-area-inset-bottom);
@@ -228,7 +228,7 @@ a {
   gap: 2px;
   padding: 10px 2px 9px;
   text-decoration: none;
-  font-size: 0.8rem;
+  font-size: min(0.8rem, 3.5vw);
   font-weight: 700;
   color: var(--muted);
   min-height: 64px;
@@ -706,6 +706,169 @@ a {
   color: var(--brand);
   font-weight: 700;
   text-underline-offset: 4px;
+}
+
+/* ───────── Patrimônio e simulador ───────── */
+
+.subnav {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 6px;
+  padding: 5px;
+  border: 2px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+}
+.subnav a {
+  display: grid;
+  place-items: center;
+  min-height: 46px;
+  padding: 0 6px;
+  border-radius: 11px;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  line-height: 1.15;
+}
+.subnav a[aria-current='page'] {
+  background: var(--brand);
+  color: var(--on-brand);
+}
+
+.stepper {
+  display: grid;
+  grid-template-columns: 56px 1fr 56px;
+  gap: 8px;
+  align-items: center;
+}
+.stepper .icon-btn {
+  width: 56px;
+  height: 56px;
+}
+
+.slider {
+  width: 100%;
+  height: 44px;
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+.slider-value {
+  color: var(--brand);
+}
+.slider-scale {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.fineprint {
+  font-size: 0.92rem;
+  max-width: 70ch;
+}
+
+/* ───────── Metas ───────── */
+
+.goal {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+button.goal {
+  cursor: pointer;
+}
+button.goal:hover {
+  background: var(--surface-2);
+}
+.goal-compact {
+  padding: 0 0 14px;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+}
+.goal-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.goal-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+.goal-sub {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+.goal-text {
+  font-weight: 700;
+}
+.goalbar {
+  height: 18px;
+  border-radius: 9px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.goalbar-fill {
+  height: 100%;
+  border-radius: 9px;
+  transition: width 0.4s ease;
+}
+.goalbar-fill.state-ok,
+.goalbar-fill.state-going {
+  background: var(--pos);
+}
+.goalbar-fill.state-warn {
+  background: var(--gold);
+}
+.goalbar-fill.state-over {
+  background: var(--neg);
+}
+.badge {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.badge-ok,
+.badge-reached {
+  background: var(--pos-bg);
+  color: var(--pos);
+}
+.badge-going {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.badge-warn {
+  background: #fdf0cf;
+  color: #6b4a00;
+}
+.badge-over {
+  background: var(--neg-bg);
+  color: var(--neg);
+}
+:root[data-theme='dark'] .badge-warn {
+  background: #3d3210;
+  color: #f2d27a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']):not([data-theme='dark']) .badge-warn {
+    background: #3d3210;
+    color: #f2d27a;
+  }
 }
 
 /* ───────── Botões e campos ───────── */
