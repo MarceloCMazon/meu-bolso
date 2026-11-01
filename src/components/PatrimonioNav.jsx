@@ -1,6 +1,6 @@
 const ITEMS = [
-  { id: 'patrimonio', label: 'Resumo' },
   { id: 'investimentos', label: 'Investimentos' },
+  { id: 'patrimonio', label: 'Patrimônio' },
   { id: 'simulador', label: 'Simulador' },
 ]
 

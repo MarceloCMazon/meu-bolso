@@ -14,6 +14,13 @@ const ICONS = {
     </>
   ),
   minus: <path d="M5 12h14" />,
+  wallet: (
+    <>
+      <path d="M3 7a2 2 0 0 1 2-2h13v4" />
+      <path d="M3 7v11a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1H5a2 2 0 0 1-2-2z" />
+      <circle cx="16" cy="14" r="1.2" />
+    </>
+  ),
   flag: <path d="M5 21V4M5 4h11l-2 4 2 4H5" />,
   plus: <path d="M12 5v14M5 12h14" />,
   left: <path d="M15 5l-7 7 7 7" />,

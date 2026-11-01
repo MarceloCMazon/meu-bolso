@@ -20,7 +20,14 @@ import Transactions from './pages/Transactions'
 const NAV = [
   { id: 'inicio', label: 'Início', icon: 'home' },
   { id: 'gastos', label: 'Gastos', icon: 'list' },
-  { id: 'patrimonio', label: 'Patrimônio', icon: 'chart', also: ['investimentos', 'simulador'] },
+  {
+    id: 'investimentos',
+    label: 'Investimentos',
+    short: 'Investir',
+    icon: 'chart',
+    mobileAlso: ['patrimonio', 'simulador'],
+  },
+  { id: 'patrimonio', label: 'Patrimônio', icon: 'wallet', also: ['simulador'], desktopOnly: true },
   { id: 'metas', label: 'Metas', icon: 'flag' },
   { id: 'ajustes', label: 'Ajustes', icon: 'sliders' },
 ]
@@ -265,15 +272,16 @@ function Shell({ session }) {
     )
   }
 
-  const renderNav = (useShort) =>
-    NAV.map((n) => (
+  // No celular o menu de baixo tem 5 itens: Patrimônio fica dentro de Investimentos.
+  const renderNav = (mobile) =>
+    NAV.filter((n) => !(mobile && n.desktopOnly)).map((n) => (
       <a
         key={n.id}
         href={`#/${n.id}`}
-        aria-current={route === n.id || n.also?.includes(route) ? 'page' : undefined}
+        aria-current={route === n.id || (mobile ? n.mobileAlso : n.also)?.includes(route) ? 'page' : undefined}
       >
         <Icon name={n.icon} size={26} />
-        <span>{useShort ? n.short || n.label : n.label}</span>
+        <span>{mobile ? n.short || n.label : n.label}</span>
       </a>
     ))
 
