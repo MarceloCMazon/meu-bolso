@@ -14,6 +14,19 @@ const ICONS = {
     </>
   ),
   minus: <path d="M5 12h14" />,
+  eye: (
+    <>
+      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
+  eyeoff: (
+    <>
+      <path d="M3 3l18 18" />
+      <path d="M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 4.4-1" />
+      <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+    </>
+  ),
   wallet: (
     <>
       <path d="M3 7a2 2 0 0 1 2-2h13v4" />
@@ -245,6 +258,24 @@ export function MonthNav({ month, onChange }) {
         <Icon name="right" />
       </button>
     </div>
+  )
+}
+
+/** Olhinho: esconde ou mostra todos os valores em dinheiro. */
+export function EyeToggle({ hidden, onToggle, withLabel }) {
+  const label = hidden ? 'Mostrar os valores' : 'Esconder os valores'
+  if (withLabel) {
+    return (
+      <button type="button" className="btn ghost small eye-wide" onClick={onToggle} aria-pressed={hidden}>
+        <Icon name={hidden ? 'eyeoff' : 'eye'} size={22} />
+        {label}
+      </button>
+    )
+  }
+  return (
+    <button type="button" className="icon-btn" onClick={onToggle} aria-pressed={hidden} aria-label={label} title={label}>
+      <Icon name={hidden ? 'eyeoff' : 'eye'} />
+    </button>
   )
 }
 

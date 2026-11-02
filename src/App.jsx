@@ -2,11 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import InvestmentForm from './components/InvestmentForm'
 import TransactionForm from './components/TransactionForm'
 import GoalForm from './components/GoalForm'
+import AllocationForm from './components/AllocationForm'
 import AssetForm from './components/AssetForm'
-import { Brand, EmptyState, Icon, TextSize } from './components/ui'
+import { Brand, EmptyState, EyeToggle, Icon, TextSize } from './components/ui'
 import { useLocalSetting, useRoute, useUsdRate } from './hooks'
 import * as api from './lib/api'
-import { currentMonth, todayISO } from './lib/format'
+import { currentMonth, setHidden, todayISO } from './lib/format'
 import { isConfigured, supabase } from './lib/supabase'
 import Auth, { NewPassword, SetupNeeded } from './pages/Auth'
 import Goals from './pages/Goals'
@@ -71,6 +72,11 @@ function Shell({ session }) {
 
   const [textSize, setTextSize] = useLocalSetting('nb-textsize', 'normal')
   const [theme, setTheme] = useLocalSetting('nb-theme', 'auto')
+  const [hideRaw, setHideRaw] = useLocalSetting('nb-hide', '0')
+  const hidden = hideRaw === '1'
+  // Precisa valer antes de qualquer tela desenhar um valor em dinheiro.
+  setHidden(hidden)
+  const toggleHidden = () => setHideRaw(hidden ? '0' : '1')
 
   const [month, setMonth] = useState(currentMonth())
   const [data, setData] = useState({
@@ -82,6 +88,8 @@ function Shell({ session }) {
     assets: [],
     assetHistory: [],
     patrimonioReady: true,
+    targets: [],
+    targetsReady: true,
   })
   const [status, setStatus] = useState('loading')
   const [errorMsg, setErrorMsg] = useState('')
@@ -90,6 +98,7 @@ function Shell({ session }) {
   const [invModal, setInvModal] = useState(null)
   const [goalModal, setGoalModal] = useState(null)
   const [assetModal, setAssetModal] = useState(null)
+  const [targetModal, setTargetModal] = useState(false)
   const toastTimer = useRef(0)
   const snapshotKey = useRef('')
 
@@ -171,6 +180,20 @@ function Shell({ session }) {
     notify('Investimento excluído.')
   }
 
+  async function saveTargets(map) {
+    await api.saveTargets(userId, map)
+    await reload()
+    setTargetModal(false)
+    notify('Meta da carteira salva.')
+  }
+
+  async function clearTargets() {
+    await api.clearTargets(userId)
+    await reload()
+    setTargetModal(false)
+    notify('Meta da carteira removida.')
+  }
+
   async function saveAsset(payload, id) {
     await api.saveAsset(userId, payload, id)
     await reload()
@@ -232,6 +255,7 @@ function Shell({ session }) {
         rate={rate}
         onAdd={() => setInvModal({})}
         onEdit={(inv) => setInvModal({ inv })}
+        onEditTargets={() => setTargetModal(true)}
       />
     )
   } else if (route === 'patrimonio') {
@@ -297,6 +321,7 @@ function Shell({ session }) {
           {renderNav(false)}
         </nav>
         <div className="side-foot">
+          <EyeToggle hidden={hidden} onToggle={toggleHidden} withLabel />
           <p className="side-label">Tamanho da letra</p>
           <TextSize name="textsize-side" value={textSize} onChange={setTextSize} />
         </div>
@@ -304,7 +329,10 @@ function Shell({ session }) {
 
       <header className="topbar">
         <Brand small />
-        <TextSize name="textsize-top" value={textSize} onChange={setTextSize} />
+        <div className="topbar-tools">
+          <EyeToggle hidden={hidden} onToggle={toggleHidden} />
+          <TextSize name="textsize-top" value={textSize} onChange={setTextSize} />
+        </div>
       </header>
 
       <main id="conteudo" className="main" tabIndex={-1}>
@@ -333,6 +361,14 @@ function Shell({ session }) {
           onSave={saveTx}
           onDelete={deleteTx}
           onClose={() => setTxModal(null)}
+        />
+      )}
+      {targetModal && (
+        <AllocationForm
+          targets={data.targets}
+          onSave={saveTargets}
+          onClear={clearTargets}
+          onClose={() => setTargetModal(false)}
         />
       )}
       {assetModal && (

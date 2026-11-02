@@ -207,6 +207,22 @@ a {
 .brand img {
   border-radius: 10px;
 }
+.topbar-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.eye-wide {
+  width: 100%;
+  margin-bottom: 18px;
+  justify-content: flex-start;
+}
+/* Em telas estreitas o topo mostra só o ícone da marca, para caber o olhinho. */
+@media (max-width: 430px) {
+  .topbar .brand > span {
+    display: none;
+  }
+}
 .brand-small {
   font-size: 1.1rem;
 }
@@ -576,6 +592,89 @@ a {
 .row-sub {
   color: var(--muted);
   font-size: 0.92rem;
+}
+/* Diversificação da carteira */
+.div-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.div-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.div-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.div-name {
+  font-weight: 700;
+}
+.div-bar {
+  position: relative;
+  height: 18px;
+}
+.div-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 9px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.div-fill {
+  height: 100%;
+  border-radius: 9px 0 0 9px;
+  transition: width 0.4s ease;
+}
+.div-mark {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 4px;
+  margin-left: -2px;
+  border-radius: 2px;
+  background: var(--ink);
+}
+.div-legend {
+  font-size: 0.92rem;
+}
+.div-tip {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  font-weight: 700;
+}
+.preset-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 6px 0;
+}
+.card .btn.small {
+  align-self: flex-start;
+}
+.row-sub.soon {
+  color: var(--ink);
+  font-weight: 700;
+}
+.calc-box {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+.calc-box strong {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
 }
 .row-amount {
   font-family: var(--font-display);

@@ -192,6 +192,52 @@ export function allocation(investments, rate) {
   }).filter((g) => g.items.length > 0)
 }
 
+/**
+ * Diversificação: como a carteira está hoje x a meta da pessoa.
+ * "need" é quanto falta (positivo) ou sobra (negativo) em cada tipo para chegar na meta,
+ * com o total de hoje. Só indicamos para onde direcionar novos aportes, nunca vender.
+ */
+export function diversification(investments, targets, rate) {
+  const total = portfolio(investments, rate).value
+  const targetMap = {}
+  for (const t of targets) targetMap[t.kind] = Number(t.percent)
+  const hasTargets = Object.values(targetMap).some((v) => v > 0)
+
+  const rows = KINDS.map((k) => {
+    const value = investments.filter((i) => i.kind === k.id).reduce((s, i) => s + investValue(i, rate), 0)
+    const pct = total > 0 ? (value / total) * 100 : 0
+    const target = targetMap[k.id] || 0
+    const diff = pct - target
+    let state = 'ok'
+    if (diff > 5) state = 'above'
+    else if (diff < -5) state = 'below'
+    return {
+      id: k.id,
+      label: k.label,
+      icon: k.icon,
+      color: k.color,
+      value,
+      pct,
+      target,
+      diff,
+      need: (target / 100) * total - value,
+      state,
+    }
+  }).filter((r) => r.value > 0 || r.target > 0)
+
+  const positions = investments
+    .map((i) => ({ name: i.name, value: investValue(i, rate) }))
+    .sort((a, b) => b.value - a.value)
+  const top =
+    positions.length >= 2 && total > 0 ? { name: positions[0].name, share: (positions[0].value / total) * 100 } : null
+
+  const suggest = hasTargets
+    ? rows.filter((r) => r.target > 0 && r.need > 1 && r.state !== 'ok').sort((a, b) => b.need - a.need)
+    : []
+
+  return { total, hasTargets, rows, top, suggest, allOk: hasTargets && rows.every((r) => r.state === 'ok') }
+}
+
 /** Evolução mês a mês: quanto foi investido e quanto valia no fim de cada mês. */
 export function evolution(investments, history, months, rate) {
   const today = todayISO()

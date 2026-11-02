@@ -1,9 +1,10 @@
 import { useMemo } from 'react'
 import { Donut, EvolutionLines, LINE_INVESTED, LINE_VALUE } from '../components/charts'
+import Diversification from '../components/Diversification'
 import PatrimonioNav from '../components/PatrimonioNav'
 import { EmptyState, Icon } from '../components/ui'
 import { allocation, evolution, investValue, lastMonths, portfolio } from '../lib/calc'
-import { brl, currentMonth, monthShort, pct, shortDate, usd } from '../lib/format'
+import { brl, brlOpen, currentMonth, maturityInfo, monthShort, pct, qtyFmt, shortDate, usd } from '../lib/format'
 
 function Gain({ value, percent }) {
   const up = value >= 0
@@ -14,7 +15,7 @@ function Gain({ value, percent }) {
   )
 }
 
-export default function Investments({ data, rate, onAdd, onEdit }) {
+export default function Investments({ data, rate, onAdd, onEdit, onEditTargets }) {
   const rateValue = rate?.value
   const port = useMemo(() => portfolio(data.investments, rateValue), [data.investments, rateValue])
   const groups = useMemo(() => allocation(data.investments, rateValue), [data.investments, rateValue])
@@ -41,7 +42,7 @@ export default function Investments({ data, rate, onAdd, onEdit }) {
 
       {rate && (
         <p className="rate-chip">
-          Dólar hoje: <strong>{brl(rate.value)}</strong>
+          Dólar hoje: <strong>{brlOpen(rate.value)}</strong>
           {!rate.live && <span> (última cotação salva)</span>}
         </p>
       )}
@@ -126,6 +127,14 @@ export default function Investments({ data, rate, onAdd, onEdit }) {
             </section>
           </div>
 
+          <Diversification
+            investments={data.investments}
+            targets={data.targets}
+            targetsReady={data.targetsReady}
+            rate={rate}
+            onEdit={onEditTargets}
+          />
+
           {groups.map((g) => (
             <section key={g.id} className="list-section" aria-label={g.label}>
               <div className="list-head">
@@ -149,6 +158,18 @@ export default function Investments({ data, rate, onAdd, onEdit }) {
                             : ''}
                           Investiu {brl(inv.invested_brl)} em {shortDate(inv.date)}
                         </span>
+                        {Number(inv.quantity) > 0 && (
+                          <span className="row-sub">
+                            {qtyFmt(inv.quantity)} {Number(inv.quantity) === 1 ? 'cota' : 'cotas'} · pagou{' '}
+                            {brl(inv.unit_price ?? Number(inv.invested_brl) / Number(inv.quantity))} cada · hoje{' '}
+                            {brl(now / Number(inv.quantity))} cada
+                          </span>
+                        )}
+                        {inv.maturity_date && (
+                          <span className={`row-sub ${maturityInfo(inv.maturity_date).soon ? 'soon' : ''}`}>
+                            {maturityInfo(inv.maturity_date).text}
+                          </span>
+                        )}
                         <span className="row-sub">
                           <Gain value={gain} percent={gainPct} />
                         </span>

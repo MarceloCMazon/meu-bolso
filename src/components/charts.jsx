@@ -12,7 +12,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { brl } from '../lib/format'
+import { brl, isHidden } from '../lib/format'
 
 const tooltipStyle = {
   background: 'var(--surface)',
@@ -22,8 +22,10 @@ const tooltipStyle = {
   fontSize: 15,
 }
 
-const compact = (v) =>
-  v >= 1000 ? `${(v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mil` : String(v)
+const compact = (v) => {
+  if (isHidden()) return '•••'
+  return v >= 1000 ? `${(v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mil` : String(v)
+}
 
 export const IN_COLOR = '#2E9E6B'
 export const OUT_COLOR = '#D4543F'
@@ -31,7 +33,7 @@ export const OUT_COLOR = '#D4543F'
 export function Donut({ slices, centerLabel, centerValue, ariaLabel }) {
   return (
     <div className="donut" role="img" aria-label={ariaLabel}>
-      <ResponsiveContainer width="100%" height={220}>
+      <ResponsiveContainer key={isHidden() ? 'oculto' : 'visivel'}width="100%" height={220}>
         <PieChart>
           <Pie
             data={slices}
@@ -61,7 +63,7 @@ export function Donut({ slices, centerLabel, centerValue, ariaLabel }) {
 export function MonthlyBars({ data, ariaLabel }) {
   return (
     <div className="chart" role="img" aria-label={ariaLabel}>
-      <ResponsiveContainer width="100%" height={240}>
+      <ResponsiveContainer key={isHidden() ? 'oculto' : 'visivel'}width="100%" height={240}>
         <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barGap={4}>
           <CartesianGrid vertical={false} stroke="currentColor" strokeOpacity={0.18} />
           <XAxis
@@ -94,7 +96,7 @@ export function MonthlyBars({ data, ariaLabel }) {
 export function NetWorthLine({ data, ariaLabel }) {
   return (
     <div className="chart" role="img" aria-label={ariaLabel}>
-      <ResponsiveContainer width="100%" height={240}>
+      <ResponsiveContainer key={isHidden() ? 'oculto' : 'visivel'}width="100%" height={240}>
         <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
           <CartesianGrid vertical={false} stroke="currentColor" strokeOpacity={0.18} />
           <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: 'currentColor', fontSize: 14 }} />
@@ -124,7 +126,7 @@ export function NetWorthLine({ data, ariaLabel }) {
 export function GrowthChart({ data, ariaLabel }) {
   return (
     <div className="chart" role="img" aria-label={ariaLabel}>
-      <ResponsiveContainer width="100%" height={260}>
+      <ResponsiveContainer key={isHidden() ? 'oculto' : 'visivel'}width="100%" height={260}>
         <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
           <CartesianGrid vertical={false} stroke="currentColor" strokeOpacity={0.18} />
           <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: 'currentColor', fontSize: 13 }} />
@@ -165,7 +167,7 @@ export const LINE_VALUE = '#1F8A84'
 export function EvolutionLines({ data, ariaLabel }) {
   return (
     <div className="chart" role="img" aria-label={ariaLabel}>
-      <ResponsiveContainer width="100%" height={240}>
+      <ResponsiveContainer key={isHidden() ? 'oculto' : 'visivel'}width="100%" height={240}>
         <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
           <CartesianGrid vertical={false} stroke="currentColor" strokeOpacity={0.18} />
           <XAxis

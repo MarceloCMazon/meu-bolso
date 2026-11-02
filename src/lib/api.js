@@ -13,6 +13,9 @@ export function explain(err) {
   if (err?.code === '42P01' || err?.code === 'PGRST205' || /does not exist|schema cache/i.test(text)) {
     return 'O banco de dados ainda não foi preparado. Rode o arquivo supabase/schema.sql no Supabase (veja o README).'
   }
+  if (err?.code === 'PGRST204' || /could not find the '.*' column/i.test(text)) {
+    return 'O banco ainda não foi atualizado para guardar cotas e vencimento. Rode o arquivo supabase/migrations/004_investimentos_detalhes.sql no Supabase.'
+  }
   if (/failed to fetch|networkerror|load failed/i.test(text)) {
     return 'Sem conexão com a internet. Confira o Wi-Fi ou os dados do celular e tente de novo.'
   }
@@ -49,7 +52,11 @@ export async function loadAll() {
     supabase.from('asset_history').select('*').order('recorded_at', { ascending: true }).limit(5000),
   ])
   const patrimonioReady = !a.error && !ah.error
+  // Meta de diversificação também é opcional.
+  const tg = await supabase.from('allocation_targets').select('*')
   return {
+    targets: tg.error ? [] : tg.data,
+    targetsReady: !tg.error,
     assets: patrimonioReady ? a.data : [],
     assetHistory: patrimonioReady ? ah.data : [],
     patrimonioReady,
@@ -59,6 +66,16 @@ export async function loadAll() {
     goals: g.error ? [] : g.data,
     goalsReady: !g.error,
   }
+}
+
+/** map = { renda_fixa: 50, renda_variavel: 35, dolar: 10, outros: 5 } */
+export async function saveTargets(userId, map) {
+  const rows = Object.entries(map).map(([kind, percent]) => ({ user_id: userId, kind, percent }))
+  check(await supabase.from('allocation_targets').upsert(rows, { onConflict: 'user_id,kind' }))
+}
+
+export async function clearTargets(userId) {
+  check(await supabase.from('allocation_targets').delete().eq('user_id', userId))
 }
 
 async function setAssetToday(userId, assetId, value) {
