@@ -1492,3 +1492,26 @@ button.goal:hover {
 .invoice-total small {
   color: var(--muted, inherit);
 }
+
+/* Gastos fixos e fatura paga */
+.quick-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.quick-links .btn {
+  text-decoration: none;
+}
+.invoice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.invoice-head .paid {
+  color: var(--pos);
+  font-weight: 700;
+}
+.upcoming-item {
+  flex-wrap: wrap;
+  align-items: baseline;
+}

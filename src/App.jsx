@@ -7,11 +7,14 @@ import AssetForm from './components/AssetForm'
 import { Brand, EmptyState, EyeToggle, Icon, TextSize } from './components/ui'
 import { useLocalSetting, useRoute, useUsdRate } from './hooks'
 import * as api from './lib/api'
+import { recurringRows } from './lib/extras'
 import { currentMonth, setHidden, todayISO } from './lib/format'
 import { isConfigured, supabase } from './lib/supabase'
 import Auth, { NewPassword, SetupNeeded } from './pages/Auth'
 import CardForm from './components/CardForm'
 import Cards from './pages/Cards'
+import RecurringForm from './components/RecurringForm'
+import Recurring from './pages/Recurring'
 import Goals from './pages/Goals'
 import Home from './pages/Home'
 import Investments from './pages/Investments'
@@ -22,7 +25,7 @@ import Transactions from './pages/Transactions'
 
 const NAV = [
   { id: 'inicio', label: 'Início', icon: 'home' },
-  { id: 'gastos', label: 'Gastos', icon: 'list', also: ['cartoes'], mobileAlso: ['cartoes'] },
+  { id: 'gastos', label: 'Gastos', icon: 'list', also: ['cartoes', 'fixos'], mobileAlso: ['cartoes', 'fixos'] },
   {
     id: 'investimentos',
     label: 'Investimentos',
@@ -98,6 +101,10 @@ function Shell({ session }) {
     targetsReady: true,
     cards: [],
     cardsReady: true,
+    payments: [],
+    paymentsReady: true,
+    recurring: [],
+    recurringReady: true,
   })
   const [status, setStatus] = useState('loading')
   const [errorMsg, setErrorMsg] = useState('')
@@ -108,6 +115,8 @@ function Shell({ session }) {
   const [assetModal, setAssetModal] = useState(null)
   const [targetModal, setTargetModal] = useState(false)
   const [cardModal, setCardModal] = useState(null)
+  const [recModal, setRecModal] = useState(null)
+  const recurringKey = useRef('')
   const toastTimer = useRef(0)
   const snapshotKey = useRef('')
 
@@ -171,6 +180,22 @@ function Shell({ session }) {
       .then(() => reload(['investments'], { quiet: true }))
       .catch(() => {})
   }, [status, rate, data, userId, reload])
+
+  // Gastos fixos: cria sozinho os lançamentos dos próximos meses que ainda não existem.
+  useEffect(() => {
+    if (status !== 'ready' || !data.recurringReady || data.recurring.length === 0) return
+    const { rows, touched } = recurringRows(data.recurring, data.cards)
+    if (touched.length === 0) return
+    const key = touched.map((t) => `${t.id}:${t.generated_until}`).join(',')
+    if (recurringKey.current === key) return
+    recurringKey.current = key
+    api
+      .addRecurringRows(userId, rows, touched)
+      .then(() => reload(['transactions', 'recurring'], { quiet: true }))
+      .catch(() => {
+        recurringKey.current = ''
+      })
+  }, [status, data.recurring, data.recurringReady, data.cards, userId, reload])
 
   // Depois de gravar, a janela fecha na hora e só o que mudou é recarregado em segundo plano.
   async function saveTx(payload, id) {
@@ -255,6 +280,30 @@ function Shell({ session }) {
     reload(['cards', 'transactions'], { quiet: true })
   }
 
+  async function togglePaid(cardId, month, paid) {
+    try {
+      await api.setInvoicePaid(userId, cardId, month, paid)
+      notify(paid ? 'Fatura marcada como paga.' : 'Pagamento desmarcado.')
+      reload(['cards'], { quiet: true })
+    } catch (err) {
+      notify(api.explain(err))
+    }
+  }
+
+  async function saveRecurring(payload, id) {
+    await api.saveRecurring(userId, payload, id)
+    setRecModal(null)
+    notify('Gasto fixo salvo.')
+    reload(['recurring', 'transactions'], { quiet: true })
+  }
+
+  async function deleteRecurring(id, alsoFuture) {
+    await api.deleteRecurring(id, alsoFuture)
+    setRecModal(null)
+    notify('Gasto fixo parado.')
+    reload(['recurring', 'transactions'], { quiet: true })
+  }
+
   async function saveGoal(payload, id) {
     await api.saveGoal(userId, payload, id)
     setGoalModal(null)
@@ -278,6 +327,8 @@ function Shell({ session }) {
   const openTargets = useCallback(() => setTargetModal(true), [])
   const openNewAsset = useCallback(() => setAssetModal({}), [])
   const openEditAsset = useCallback((asset) => setAssetModal({ asset }), [])
+  const openNewRec = useCallback(() => setRecModal({}), [])
+  const openEditRec = useCallback((rec) => setRecModal({ rec }), [])
   const openNewCard = useCallback(() => setCardModal({}), [])
   const openEditCard = useCallback((card) => setCardModal({ card }), [])
   const openNewGoal = useCallback(() => setGoalModal({}), [])
@@ -338,8 +389,11 @@ function Shell({ session }) {
         onAddCard={openNewCard}
         onEditCard={openEditCard}
         onEdit={openEditTx}
+        onTogglePaid={togglePaid}
       />
     )
+  } else if (route === 'fixos') {
+    content = <Recurring data={data} onAdd={openNewRec} onEdit={openEditRec} />
   } else if (route === 'metas') {
     content = <Goals data={data} hidden={hidden} onAdd={openNewGoal} onEdit={openEditGoal} />
   } else if (route === 'ajustes') {
@@ -435,6 +489,15 @@ function Shell({ session }) {
           onSaveInstallments={saveInstallments}
           onDelete={deleteTx}
           onClose={() => setTxModal(null)}
+        />
+      )}
+      {recModal && (
+        <RecurringForm
+          initial={recModal.rec}
+          cards={data.cards}
+          onSave={saveRecurring}
+          onDelete={deleteRecurring}
+          onClose={() => setRecModal(null)}
         />
       )}
       {cardModal && (

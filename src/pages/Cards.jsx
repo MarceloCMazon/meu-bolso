@@ -5,8 +5,9 @@ import { brl, currentMonth, daysUntil, monthKey, monthLabel, shiftMonth, shortDa
 
 const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100
 
-function statusOf(dates, total) {
+function statusOf(dates, total, paid) {
   const today = todayISO()
+  if (paid) return { text: `Paga em ${shortDate(paid.paid_at)}`, tone: 'paid' }
   if (total <= 0) return { text: 'Sem gastos nesta fatura', tone: '' }
   if (today <= dates.closes) return { text: `Aberta · fecha em ${shortDate(dates.closes)}`, tone: '' }
   if (today <= dates.due) {
@@ -17,8 +18,9 @@ function statusOf(dates, total) {
   return { text: `Venceu em ${shortDate(dates.due)}`, tone: '' }
 }
 
-function Cards({ data, month, setMonth, onAddCard, onEditCard, onEdit }) {
-  const { cards, transactions, cardsReady } = data
+function Cards({ data, month, setMonth, onAddCard, onEditCard, onEdit, onTogglePaid }) {
+  const { cards, transactions, cardsReady, payments, paymentsReady } = data
+  const paidMap = useMemo(() => new Map(payments.map((p) => [`${p.card_id}|${p.month}`, p])), [payments])
   const maxMonth = shiftMonth(currentMonth(), 24)
 
   // Uma passada só: total e lançamentos de cada cartão, por mês de vencimento.
@@ -40,11 +42,16 @@ function Cards({ data, month, setMonth, onAddCard, onEditCard, onEdit }) {
     for (let i = 0; i < 6; i += 1) {
       const m = shiftMonth(currentMonth(), i)
       let total = 0
-      for (const c of cards) total += byCard.get(`${c.id}|${m}`)?.total || 0
-      out.push({ month: m, total: round2(total) })
+      let open = 0
+      for (const c of cards) {
+        const v = byCard.get(`${c.id}|${m}`)?.total || 0
+        total += v
+        if (!paidMap.has(`${c.id}|${m}`)) open += v
+      }
+      out.push({ month: m, total: round2(total), open: round2(open) })
     }
     return out
-  }, [cards, byCard])
+  }, [cards, byCard, paidMap])
 
   if (!cardsReady) {
     return (
@@ -94,6 +101,7 @@ function Cards({ data, month, setMonth, onAddCard, onEditCard, onEdit }) {
                   <button type="button" className={`upcoming-item ${u.month === month ? 'on' : ''}`} onClick={() => setMonth(u.month)}>
                     <span>{monthLabel(u.month)}</span>
                     <strong>{brl(u.total)}</strong>
+                    {u.open > 0 && u.open < u.total && <small className="muted">falta pagar {brl(u.open)}</small>}
                   </button>
                 </li>
               ))}
@@ -107,13 +115,14 @@ function Cards({ data, month, setMonth, onAddCard, onEditCard, onEdit }) {
             const e = byCard.get(`${card.id}|${month}`)
             const total = round2(e?.total || 0)
             const dates = invoiceDates(month, card)
-            const st = statusOf(dates, total)
+            const paid = paidMap.get(`${card.id}|${month}`)
+            const st = statusOf(dates, total, paid)
             return (
               <section key={card.id} className="card invoice" aria-label={`Fatura ${card.name}`}>
                 <div className="invoice-head">
                   <div>
                     <h2>{card.name}</h2>
-                    <p className={`muted ${st.tone === 'soon' ? 'soon' : ''}`}>{st.text}</p>
+                    <p className={`muted ${st.tone}`}>{st.text}</p>
                   </div>
                   <div className="invoice-total">
                     <strong>{brl(total)}</strong>
@@ -129,9 +138,20 @@ function Cards({ data, month, setMonth, onAddCard, onEditCard, onEdit }) {
                       ))}
                   </div>
                 )}
-                <button type="button" className="btn ghost small" onClick={() => onEditCard(card)}>
-                  Editar cartão
-                </button>
+                <div className="invoice-actions">
+                  {paymentsReady && (total > 0 || paid) && (
+                    <button
+                      type="button"
+                      className={`btn small ${paid ? 'ghost' : 'primary'}`}
+                      onClick={() => onTogglePaid(card.id, month, !paid)}
+                    >
+                      {paid ? 'Desmarcar pagamento' : 'Já paguei esta fatura'}
+                    </button>
+                  )}
+                  <button type="button" className="btn ghost small" onClick={() => onEditCard(card)}>
+                    Editar cartão
+                  </button>
+                </div>
               </section>
             )
           })}

@@ -69,8 +69,20 @@ const FETCHERS = {
     }
   },
   async cards() {
-    const c = await supabase.from('cards').select('*').order('created_at', { ascending: true })
-    return { cards: c.error ? [] : c.data, cardsReady: !c.error }
+    const [c, p] = await Promise.all([
+      supabase.from('cards').select('*').order('created_at', { ascending: true }),
+      supabase.from('invoice_payments').select('*').limit(1000),
+    ])
+    return {
+      cards: c.error ? [] : c.data,
+      cardsReady: !c.error,
+      payments: p.error ? [] : p.data,
+      paymentsReady: !p.error,
+    }
+  },
+  async recurring() {
+    const r = await supabase.from('recurring').select('*').order('created_at', { ascending: true })
+    return { recurring: r.error ? [] : r.data, recurringReady: !r.error }
   },
   async targets() {
     const tg = await supabase.from('allocation_targets').select('*')
@@ -155,6 +167,59 @@ export async function saveCard(userId, payload, id) {
 /** Os gastos do cartão continuam; só deixam de apontar para ele. */
 export async function deleteCard(id) {
   check(await supabase.from('cards').delete().eq('id', id))
+}
+
+/** Marca (ou desmarca) uma fatura como paga. */
+export async function setInvoicePaid(userId, cardId, month, paid) {
+  if (paid) {
+    check(
+      await supabase
+        .from('invoice_payments')
+        .upsert({ user_id: userId, card_id: cardId, month, paid_at: todayISO() }, { onConflict: 'card_id,month' }),
+    )
+  } else {
+    check(await supabase.from('invoice_payments').delete().eq('card_id', cardId).eq('month', month))
+  }
+}
+
+export async function saveRecurring(userId, payload, id) {
+  if (id) {
+    check(await supabase.from('recurring').update(payload).eq('id', id))
+    // Valor, categoria e nome novos valem para os meses que ainda não chegaram.
+    check(
+      await supabase
+        .from('transactions')
+        .update({ amount: payload.amount, category: payload.category, description: payload.description })
+        .eq('recurring_id', id)
+        .gt('date', todayISO()),
+    )
+  } else {
+    check(await supabase.from('recurring').insert({ ...payload, user_id: userId }))
+  }
+}
+
+export async function deleteRecurring(id, alsoFuture) {
+  if (alsoFuture) {
+    check(await supabase.from('transactions').delete().eq('recurring_id', id).gt('date', todayISO()))
+  }
+  check(await supabase.from('recurring').delete().eq('id', id))
+}
+
+/** Cria os lançamentos dos gastos fixos. Se já existir o do mês, não duplica. */
+export async function addRecurringRows(userId, rows, touched) {
+  if (rows.length) {
+    check(
+      await supabase
+        .from('transactions')
+        .upsert(rows.map((r) => ({ ...r, user_id: userId })), {
+          onConflict: 'recurring_id,recurring_month',
+          ignoreDuplicates: true,
+        }),
+    )
+  }
+  for (const t of touched) {
+    check(await supabase.from('recurring').update({ generated_until: t.generated_until }).eq('id', t.id))
+  }
 }
 
 export async function addTransaction(userId, payload) {

@@ -355,6 +355,7 @@ export function TxRow({ tx, onClick, cardName }) {
           {cardName
             ? `${cardName}${tx.purchase_date ? ` · comprado em ${shortDate(tx.purchase_date)}` : ''}`
             : shortDate(tx.date)}
+          {tx.recurring_id ? ' · fixo' : ''}
         </span>
       </span>
       <span className={`row-amount ${isIn ? 'pos' : 'neg'}`}>

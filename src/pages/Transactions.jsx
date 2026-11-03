@@ -34,11 +34,18 @@ function Transactions({ data, month, setMonth, onAdd, onEdit }) {
         </button>
       </header>
 
-      {data.cardsReady && (
-        <a className="btn secondary small card-link" href="#/cartoes">
-          Meus cartões e faturas
-        </a>
-      )}
+      <div className="quick-links">
+        {data.cardsReady && (
+          <a className="btn secondary small" href="#/cartoes">
+            Cartões e faturas
+          </a>
+        )}
+        {data.recurringReady && (
+          <a className="btn secondary small" href="#/fixos">
+            Gastos fixos
+          </a>
+        )}
+      </div>
 
       <MonthNav month={month} onChange={setMonth} maxMonth={shiftMonth(currentMonth(), 24)} />
 
