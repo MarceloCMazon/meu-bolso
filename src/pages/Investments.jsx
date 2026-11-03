@@ -1,9 +1,10 @@
-import { memo, useMemo } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { Donut, EvolutionLines } from '../components/LazyCharts'
 import { LINE_INVESTED, LINE_VALUE } from '../lib/constants'
 import Diversification from '../components/Diversification'
 import PatrimonioNav from '../components/PatrimonioNav'
-import { EmptyState, Icon } from '../components/ui'
+import { EmptyState, Icon, Segmented } from '../components/ui'
+import { rankInvestments } from '../lib/extras'
 import { allocation, evolution, investValue, lastMonths, portfolio } from '../lib/calc'
 import { brl, brlOpen, currentMonth, maturityInfo, monthShort, pct, qtyFmt, shortDate, usd } from '../lib/format'
 
@@ -20,6 +21,17 @@ function Investments({ data, rate, onAdd, onEdit, onEditTargets }) {
   const rateValue = rate?.value
   const port = useMemo(() => portfolio(data.investments, rateValue), [data.investments, rateValue])
   const groups = useMemo(() => allocation(data.investments, rateValue), [data.investments, rateValue])
+  const [order, setOrder] = useState('valor')
+
+  // Quem mais e quem menos rendeu (só aparece com 2 ou mais investimentos).
+  const ranking = useMemo(
+    () => rankInvestments(data.investments, (inv) => investValue(inv, rateValue)),
+    [data.investments, rateValue],
+  )
+  const best = ranking.length >= 2 ? ranking[0] : null
+  const worst = ranking.length >= 2 ? ranking[ranking.length - 1] : null
+  const pctById = useMemo(() => new Map(ranking.map((r) => [r.inv.id, r.pct])), [ranking])
+
   const series = useMemo(
     () =>
       evolution(data.investments, data.history, lastMonths(currentMonth(), 6), rateValue).map((p) => ({
@@ -95,7 +107,21 @@ function Investments({ data, rate, onAdd, onEdit, onEditTargets }) {
                     .join('. ')}.`}
                 />
                 <ul className="legend-list">
-                  {groups.map((g) => (
+                  <div className="order-bar">
+            <span className="muted">Mostrar primeiro</span>
+            <Segmented
+              legend="Ordem dos investimentos"
+              name="inv-order"
+              value={order}
+              onChange={setOrder}
+              options={[
+                { value: 'valor', label: 'Maior valor' },
+                { value: 'rendimento', label: 'Mais rendeu' },
+              ]}
+            />
+          </div>
+
+          {groups.map((g) => (
                     <li key={g.id}>
                       <i style={{ background: g.color }} aria-hidden="true" />
                       <span className="legend-name">
@@ -128,6 +154,32 @@ function Investments({ data, rate, onAdd, onEdit, onEditTargets }) {
             </section>
           </div>
 
+          {best && worst && best.inv.id !== worst.inv.id && (
+            <section className="card" aria-labelledby="top-title">
+              <h2 id="top-title">Destaques da carteira</h2>
+              <ul className="highlights">
+                <li>
+                  <span className="muted">Mais rendeu</span>
+                  <strong>{best.inv.name}</strong>
+                  <span className={best.pct >= 0 ? 'pos' : 'neg'}>
+                    {best.pct >= 0 ? '+' : '−'}
+                    {pct(Math.abs(best.pct))} ({best.gain >= 0 ? '+' : '−'}
+                    {brl(Math.abs(best.gain))})
+                  </span>
+                </li>
+                <li>
+                  <span className="muted">{worst.pct < 0 ? 'Mais perdeu' : 'Rendeu menos'}</span>
+                  <strong>{worst.inv.name}</strong>
+                  <span className={worst.pct >= 0 ? 'pos' : 'neg'}>
+                    {worst.pct >= 0 ? '+' : '−'}
+                    {pct(Math.abs(worst.pct))} ({worst.gain >= 0 ? '+' : '−'}
+                    {brl(Math.abs(worst.gain))})
+                  </span>
+                </li>
+              </ul>
+            </section>
+          )}
+
           <Diversification
             investments={data.investments}
             targets={data.targets}
@@ -145,7 +197,13 @@ function Investments({ data, rate, onAdd, onEdit, onEditTargets }) {
                 <span className="muted">{brl(g.value)}</span>
               </div>
               <div className="card rows">
-                {g.items.map((inv) => {
+                {[...g.items]
+                  .sort((a, b) =>
+                    order === 'rendimento'
+                      ? (pctById.get(b.id) ?? -Infinity) - (pctById.get(a.id) ?? -Infinity)
+                      : investValue(b, rateValue) - investValue(a, rateValue),
+                  )
+                  .map((inv) => {
                   const now = investValue(inv, rateValue)
                   const gain = now - Number(inv.invested_brl)
                   const gainPct = inv.invested_brl > 0 ? (gain / Number(inv.invested_brl)) * 100 : 0
@@ -173,6 +231,12 @@ function Investments({ data, rate, onAdd, onEdit, onEditTargets }) {
                         )}
                         <span className="row-sub">
                           <Gain value={gain} percent={gainPct} />
+                          {best && worst && best.inv.id !== worst.inv.id && inv.id === best.inv.id && (
+                            <span className="badge badge-ok tag"> Mais rendeu</span>
+                          )}
+                          {best && worst && best.inv.id !== worst.inv.id && inv.id === worst.inv.id && (
+                            <span className="badge badge-going tag"> {worst.pct < 0 ? 'Mais perdeu' : 'Rendeu menos'}</span>
+                          )}
                         </span>
                       </span>
                       <span className="row-amount">{brl(now)}</span>

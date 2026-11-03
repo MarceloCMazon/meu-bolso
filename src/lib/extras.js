@@ -43,3 +43,19 @@ export function recurringRows(rules, cards, today = todayISO(), ahead = 3) {
   }
   return { rows, touched }
 }
+
+/* ---------- Investimentos: quem mais rendeu ---------- */
+
+/**
+ * Rendimento de cada investimento (em % sobre o que foi investido), do maior para o menor.
+ * Só entram os que têm valor investido. `valueOf(inv)` é o valor de hoje.
+ */
+export function rankInvestments(investments, valueOf) {
+  return investments
+    .filter((i) => Number(i.invested_brl) > 0)
+    .map((inv) => {
+      const gain = valueOf(inv) - Number(inv.invested_brl)
+      return { inv, gain: Math.round((gain + Number.EPSILON) * 100) / 100, pct: (gain / Number(inv.invested_brl)) * 100 }
+    })
+    .sort((a, b) => b.pct - a.pct)
+}
