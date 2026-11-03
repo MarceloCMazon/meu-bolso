@@ -1,5 +1,6 @@
-import { useMemo } from 'react'
-import { Donut, EvolutionLines, LINE_INVESTED, LINE_VALUE } from '../components/charts'
+import { memo, useMemo } from 'react'
+import { Donut, EvolutionLines } from '../components/LazyCharts'
+import { LINE_INVESTED, LINE_VALUE } from '../lib/constants'
 import Diversification from '../components/Diversification'
 import PatrimonioNav from '../components/PatrimonioNav'
 import { EmptyState, Icon } from '../components/ui'
@@ -15,7 +16,7 @@ function Gain({ value, percent }) {
   )
 }
 
-export default function Investments({ data, rate, onAdd, onEdit, onEditTargets }) {
+function Investments({ data, rate, onAdd, onEdit, onEditTargets }) {
   const rateValue = rate?.value
   const port = useMemo(() => portfolio(data.investments, rateValue), [data.investments, rateValue])
   const groups = useMemo(() => allocation(data.investments, rateValue), [data.investments, rateValue])
@@ -186,3 +187,5 @@ export default function Investments({ data, rate, onAdd, onEdit, onEditTargets }
     </>
   )
 }
+
+export default memo(Investments)

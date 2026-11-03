@@ -495,6 +495,16 @@ a {
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
 }
+.tiles-one {
+  grid-template-columns: 1fr;
+}
+/* Espaço reservado enquanto o gráfico é baixado, para a página não "pular". */
+.chart-skeleton {
+  min-height: 240px;
+  border-radius: 16px;
+  background: var(--surface-2);
+  opacity: 0.55;
+}
 .tile {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -1414,4 +1424,71 @@ button.goal:hover {
     transition: none !important;
     animation: none !important;
   }
+}
+
+/* Cartões e faturas */
+.field select {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 14px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 2px solid var(--line);
+  border-radius: 14px;
+}
+.card-link {
+  align-self: flex-start;
+  text-decoration: none;
+  margin-bottom: 4px;
+}
+.upcoming {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.upcoming-item {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  font: inherit;
+  color: var(--ink);
+  background: transparent;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  cursor: pointer;
+}
+.upcoming-item.on {
+  border-color: var(--brand, #1f8a84);
+}
+.invoice {
+  display: grid;
+  gap: 12px;
+}
+.invoice-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.invoice-head h2 {
+  margin: 0;
+}
+.invoice-head .soon {
+  color: var(--ink);
+  font-weight: 700;
+}
+.invoice-total {
+  text-align: right;
+  display: grid;
+}
+.invoice-total strong {
+  font-size: 1.3rem;
+}
+.invoice-total small {
+  color: var(--muted, inherit);
 }

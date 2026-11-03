@@ -14,7 +14,7 @@ export function explain(err) {
     return 'O banco de dados ainda não foi preparado. Rode o arquivo supabase/schema.sql no Supabase (veja o README).'
   }
   if (err?.code === 'PGRST204' || /could not find the '.*' column/i.test(text)) {
-    return 'O banco ainda não foi atualizado para guardar cotas e vencimento. Rode o arquivo supabase/migrations/004_investimentos_detalhes.sql no Supabase.'
+    return 'O banco ainda precisa de uma atualização para esta função. Rode o arquivo SQL mais novo da pasta supabase/migrations no Supabase.'
   }
   if (/failed to fetch|networkerror|load failed/i.test(text)) {
     return 'Sem conexão com a internet. Confira o Wi-Fi ou os dados do celular e tente de novo.'
@@ -25,48 +25,67 @@ export function explain(err) {
   return text || 'Algo deu errado. Tente de novo.'
 }
 
-export async function loadAll() {
-  const since = `${shiftMonth(currentMonth(), -24)}-01`
-  const [t, i, h] = await Promise.all([
-    supabase
+/**
+ * Cada "parte" é um grupo de dados que pode ser buscado sozinho.
+ * Assim, depois de salvar um gasto só recarregamos os gastos, e não o site inteiro.
+ * Metas, patrimônio e meta da carteira são opcionais: se a tabela ainda não existe,
+ * o resto do site segue funcionando.
+ */
+const FETCHERS = {
+  async transactions() {
+    const since = `${shiftMonth(currentMonth(), -24)}-01`
+    const r = await supabase
       .from('transactions')
       .select('*')
       .gte('date', since)
       .order('date', { ascending: false })
       .order('created_at', { ascending: false })
-      .limit(5000),
-    supabase.from('investments').select('*').order('created_at', { ascending: true }),
-    supabase
-      .from('investment_history')
-      .select('*')
-      .order('recorded_at', { ascending: true })
-      .limit(5000),
-  ])
-  for (const r of [t, i, h]) if (r.error) throw r.error
-
-  // Metas são opcionais: se a tabela ainda não existe, o resto do site segue funcionando.
-  const g = await supabase.from('goals').select('*').order('created_at', { ascending: true })
-  // Patrimônio também é opcional pelo mesmo motivo.
-  const [a, ah] = await Promise.all([
-    supabase.from('assets').select('*').order('created_at', { ascending: true }),
-    supabase.from('asset_history').select('*').order('recorded_at', { ascending: true }).limit(5000),
-  ])
-  const patrimonioReady = !a.error && !ah.error
-  // Meta de diversificação também é opcional.
-  const tg = await supabase.from('allocation_targets').select('*')
-  return {
-    targets: tg.error ? [] : tg.data,
-    targetsReady: !tg.error,
-    assets: patrimonioReady ? a.data : [],
-    assetHistory: patrimonioReady ? ah.data : [],
-    patrimonioReady,
-    transactions: t.data,
-    investments: i.data,
-    history: h.data,
-    goals: g.error ? [] : g.data,
-    goalsReady: !g.error,
-  }
+      .limit(5000)
+    if (r.error) throw r.error
+    return { transactions: r.data }
+  },
+  async investments() {
+    const [i, h] = await Promise.all([
+      supabase.from('investments').select('*').order('created_at', { ascending: true }),
+      supabase.from('investment_history').select('*').order('recorded_at', { ascending: true }).limit(5000),
+    ])
+    for (const r of [i, h]) if (r.error) throw r.error
+    return { investments: i.data, history: h.data }
+  },
+  async goals() {
+    const g = await supabase.from('goals').select('*').order('created_at', { ascending: true })
+    return { goals: g.error ? [] : g.data, goalsReady: !g.error }
+  },
+  async assets() {
+    const [a, ah] = await Promise.all([
+      supabase.from('assets').select('*').order('created_at', { ascending: true }),
+      supabase.from('asset_history').select('*').order('recorded_at', { ascending: true }).limit(5000),
+    ])
+    const ready = !a.error && !ah.error
+    return {
+      assets: ready ? a.data : [],
+      assetHistory: ready ? ah.data : [],
+      patrimonioReady: ready,
+    }
+  },
+  async cards() {
+    const c = await supabase.from('cards').select('*').order('created_at', { ascending: true })
+    return { cards: c.error ? [] : c.data, cardsReady: !c.error }
+  },
+  async targets() {
+    const tg = await supabase.from('allocation_targets').select('*')
+    return { targets: tg.error ? [] : tg.data, targetsReady: !tg.error }
+  },
 }
+
+/** Busca as partes pedidas ao mesmo tempo. Sem argumento, busca tudo. */
+export async function loadParts(parts) {
+  const names = parts && parts.length ? parts : Object.keys(FETCHERS)
+  const results = await Promise.all(names.map((n) => FETCHERS[n]()))
+  return Object.assign({}, ...results)
+}
+
+export const loadAll = () => loadParts()
 
 /** map = { renda_fixa: 50, renda_variavel: 35, dolar: 10, outros: 5 } */
 export async function saveTargets(userId, map) {
@@ -128,8 +147,34 @@ export async function deleteGoal(id) {
   check(await supabase.from('goals').delete().eq('id', id))
 }
 
+export async function saveCard(userId, payload, id) {
+  if (id) check(await supabase.from('cards').update(payload).eq('id', id))
+  else check(await supabase.from('cards').insert({ ...payload, user_id: userId }))
+}
+
+/** Os gastos do cartão continuam; só deixam de apontar para ele. */
+export async function deleteCard(id) {
+  check(await supabase.from('cards').delete().eq('id', id))
+}
+
 export async function addTransaction(userId, payload) {
   check(await supabase.from('transactions').insert({ ...payload, user_id: userId }))
+}
+
+/** Vários lançamentos de uma vez (compra parcelada). Uma só ida ao banco. */
+export async function addTransactions(userId, rows) {
+  check(await supabase.from('transactions').insert(rows.map((r) => ({ ...r, user_id: userId }))))
+}
+
+/** Exclui esta parcela e todas as seguintes da mesma compra. */
+export async function deleteInstallmentsFrom(group, number) {
+  check(
+    await supabase
+      .from('transactions')
+      .delete()
+      .eq('installment_group', group)
+      .gte('installment_number', number),
+  )
 }
 
 export async function updateTransaction(id, payload) {

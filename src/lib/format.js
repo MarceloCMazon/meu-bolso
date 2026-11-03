@@ -66,6 +66,14 @@ export function maturityInfo(iso, from = todayISO()) {
 export const monthKey = (iso) => String(iso).slice(0, 7)
 export const currentMonth = () => monthKey(todayISO())
 
+/** Soma meses a uma data, mantendo o dia (ou o último dia do mês, se o dia não existir). */
+export function addMonthsISO(iso, n) {
+  const [y, m, d] = iso.split('-').map(Number)
+  const first = new Date(y, m - 1 + n, 1)
+  const lastDay = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate()
+  return `${first.getFullYear()}-${pad(first.getMonth() + 1)}-${pad(Math.min(d, lastDay))}`
+}
+
 export function shiftMonth(key, delta) {
   const [y, m] = key.split('-').map(Number)
   const d = new Date(y, m - 1 + delta, 1)

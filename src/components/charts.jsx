@@ -12,6 +12,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { IN_COLOR, LINE_INVESTED, LINE_VALUE, OUT_COLOR } from '../lib/constants'
 import { brl, isHidden } from '../lib/format'
 
 const tooltipStyle = {
@@ -27,8 +28,6 @@ const compact = (v) => {
   return v >= 1000 ? `${(v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mil` : String(v)
 }
 
-export const IN_COLOR = '#2E9E6B'
-export const OUT_COLOR = '#D4543F'
 
 export function Donut({ slices, centerLabel, centerValue, ariaLabel }) {
   return (
@@ -161,8 +160,6 @@ export function GrowthChart({ data, ariaLabel }) {
   )
 }
 
-export const LINE_INVESTED = '#7F95A0'
-export const LINE_VALUE = '#1F8A84'
 
 export function EvolutionLines({ data, ariaLabel }) {
   return (

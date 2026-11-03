@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { Donut, NetWorthLine } from '../components/charts'
+import { memo, useMemo } from 'react'
+import { Donut, NetWorthLine } from '../components/LazyCharts'
 import PatrimonioNav from '../components/PatrimonioNav'
 import { EmptyState, Icon } from '../components/ui'
 import { lastMonths, netWorth, netWorthEvolution } from '../lib/calc'
@@ -28,7 +28,7 @@ function AssetRow({ asset, onEdit }) {
   )
 }
 
-export default function Patrimonio({ data, rate, onAdd, onEdit }) {
+function Patrimonio({ data, rate, onAdd, onEdit }) {
   const rateValue = rate?.value
   const nw = useMemo(
     () => netWorth(data.investments, data.assets, rateValue),
@@ -215,3 +215,5 @@ export default function Patrimonio({ data, rate, onAdd, onEdit }) {
     </>
   )
 }
+
+export default memo(Patrimonio)

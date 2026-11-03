@@ -37,6 +37,13 @@ export const CHART_COLORS = [
   '#6B8E23',
 ]
 
+// Cores dos gráficos ficam aqui (e não em charts.jsx) para as telas poderem usá-las
+// sem carregar a biblioteca de gráficos.
+export const IN_COLOR = '#2E9E6B'
+export const OUT_COLOR = '#D4543F'
+export const LINE_INVESTED = '#7F95A0'
+export const LINE_VALUE = '#1F8A84'
+
 export const KINDS = [
   {
     id: 'renda_fixa',

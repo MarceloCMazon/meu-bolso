@@ -1,9 +1,9 @@
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import GoalCard from '../components/GoalCard'
 import { EmptyState, Icon } from '../components/ui'
 import { goalProgress } from '../lib/calc'
 
-export default function Goals({ data, onAdd, onEdit }) {
+function Goals({ data, onAdd, onEdit }) {
   const items = useMemo(
     () =>
       data.goals.map((g) => ({
@@ -69,3 +69,5 @@ export default function Goals({ data, onAdd, onEdit }) {
     </>
   )
 }
+
+export default memo(Goals)

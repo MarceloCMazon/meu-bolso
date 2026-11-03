@@ -10,7 +10,7 @@ function downloadCsv(transactions) {
       t.date,
       t.type === 'entrada' ? 'Entrada' : 'Saída',
       categoryOf(t.category).label,
-      t.description || '',
+      (t.description || '') + (t.installment_total ? ` (${t.installment_number}/${t.installment_total})` : ''),
       toInput(Number(t.amount).toFixed(2)),
     ]
       .map(esc)

@@ -10,6 +10,8 @@ import * as api from './lib/api'
 import { currentMonth, setHidden, todayISO } from './lib/format'
 import { isConfigured, supabase } from './lib/supabase'
 import Auth, { NewPassword, SetupNeeded } from './pages/Auth'
+import CardForm from './components/CardForm'
+import Cards from './pages/Cards'
 import Goals from './pages/Goals'
 import Home from './pages/Home'
 import Investments from './pages/Investments'
@@ -20,7 +22,7 @@ import Transactions from './pages/Transactions'
 
 const NAV = [
   { id: 'inicio', label: 'Início', icon: 'home' },
-  { id: 'gastos', label: 'Gastos', icon: 'list' },
+  { id: 'gastos', label: 'Gastos', icon: 'list', also: ['cartoes'], mobileAlso: ['cartoes'] },
   {
     id: 'investimentos',
     label: 'Investimentos',
@@ -47,7 +49,11 @@ function Root() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
     const { data } = supabase.auth.onAuthStateChange((event, next) => {
-      setSession(next)
+      // O Supabase avisa de novo quando a aba volta a ficar visível. Se a pessoa e a
+      // sessão são as mesmas, mantemos o mesmo objeto para não redesenhar o site à toa.
+      setSession((prev) =>
+        prev && next && prev.user.id === next.user.id && prev.access_token === next.access_token ? prev : next,
+      )
       if (event === 'PASSWORD_RECOVERY') setRecovering(true)
     })
     return () => data.subscription.unsubscribe()
@@ -90,6 +96,8 @@ function Shell({ session }) {
     patrimonioReady: true,
     targets: [],
     targetsReady: true,
+    cards: [],
+    cardsReady: true,
   })
   const [status, setStatus] = useState('loading')
   const [errorMsg, setErrorMsg] = useState('')
@@ -99,6 +107,7 @@ function Shell({ session }) {
   const [goalModal, setGoalModal] = useState(null)
   const [assetModal, setAssetModal] = useState(null)
   const [targetModal, setTargetModal] = useState(false)
+  const [cardModal, setCardModal] = useState(null)
   const toastTimer = useRef(0)
   const snapshotKey = useRef('')
 
@@ -118,15 +127,27 @@ function Shell({ session }) {
     toastTimer.current = window.setTimeout(() => setToast(''), 3200)
   }, [])
 
-  const reload = useCallback(async () => {
-    try {
-      setData(await api.loadAll())
-      setStatus('ready')
-    } catch (err) {
-      setErrorMsg(api.explain(err))
-      setStatus('error')
-    }
-  }, [])
+  /**
+   * Busca dados no banco. `parts` diz o que recarregar (ex.: ['transactions']);
+   * sem isso, busca tudo. Com `quiet`, uma falha só avisa, sem trocar a tela por um erro.
+   */
+  const reload = useCallback(
+    async (parts, { quiet = false } = {}) => {
+      try {
+        const next = await api.loadParts(parts)
+        setData((prev) => ({ ...prev, ...next }))
+        setStatus('ready')
+      } catch (err) {
+        if (quiet) {
+          notify('Salvo, mas não consegui atualizar a tela. Recarregue a página.')
+          return
+        }
+        setErrorMsg(api.explain(err))
+        setStatus('error')
+      }
+    },
+    [notify],
+  )
 
   useEffect(() => {
     reload()
@@ -147,84 +168,121 @@ function Shell({ session }) {
     snapshotKey.current = key
     api
       .snapshotDollars(userId, pending, rate.value)
-      .then(reload)
+      .then(() => reload(['investments'], { quiet: true }))
       .catch(() => {})
   }, [status, rate, data, userId, reload])
 
+  // Depois de gravar, a janela fecha na hora e só o que mudou é recarregado em segundo plano.
   async function saveTx(payload, id) {
     if (id) await api.updateTransaction(id, payload)
     else await api.addTransaction(userId, payload)
-    await reload()
     setTxModal(null)
     notify('Lançamento salvo.')
+    reload(['transactions'], { quiet: true })
   }
 
-  async function deleteTx(id) {
-    await api.deleteTransaction(id)
-    await reload()
+  async function saveInstallments(rows) {
+    await api.addTransactions(userId, rows)
     setTxModal(null)
-    notify('Lançamento excluído.')
+    notify(`${rows.length} parcelas salvas.`)
+    reload(['transactions'], { quiet: true })
+  }
+
+  async function deleteTx(tx, scope) {
+    if (scope === 'from' && tx.installment_group) {
+      await api.deleteInstallmentsFrom(tx.installment_group, tx.installment_number)
+    } else {
+      await api.deleteTransaction(tx.id)
+    }
+    setTxModal(null)
+    notify(scope === 'from' ? 'Parcelas excluídas.' : 'Lançamento excluído.')
+    reload(['transactions'], { quiet: true })
   }
 
   async function saveInv(payload, id) {
     await api.saveInvestment(userId, payload, id)
-    await reload()
     setInvModal(null)
     notify('Investimento salvo.')
+    reload(['investments'], { quiet: true })
   }
 
   async function deleteInv(id) {
     await api.deleteInvestment(id)
-    await reload()
     setInvModal(null)
     notify('Investimento excluído.')
+    reload(['investments'], { quiet: true })
   }
 
   async function saveTargets(map) {
     await api.saveTargets(userId, map)
-    await reload()
     setTargetModal(false)
     notify('Meta da carteira salva.')
+    reload(['targets'], { quiet: true })
   }
 
   async function clearTargets() {
     await api.clearTargets(userId)
-    await reload()
     setTargetModal(false)
     notify('Meta da carteira removida.')
+    reload(['targets'], { quiet: true })
   }
 
   async function saveAsset(payload, id) {
     await api.saveAsset(userId, payload, id)
-    await reload()
     setAssetModal(null)
     notify('Item salvo.')
+    reload(['assets'], { quiet: true })
   }
 
   async function deleteAsset(id) {
     await api.deleteAsset(id)
-    await reload()
     setAssetModal(null)
     notify('Item excluído.')
+    reload(['assets'], { quiet: true })
+  }
+
+  async function saveCard(payload, id) {
+    await api.saveCard(userId, payload, id)
+    setCardModal(null)
+    notify('Cartão salvo.')
+    reload(['cards'], { quiet: true })
+  }
+
+  async function deleteCard(id) {
+    await api.deleteCard(id)
+    setCardModal(null)
+    notify('Cartão excluído. Os gastos dele continuam anotados.')
+    reload(['cards', 'transactions'], { quiet: true })
   }
 
   async function saveGoal(payload, id) {
     await api.saveGoal(userId, payload, id)
-    await reload()
     setGoalModal(null)
     notify('Meta salva.')
+    reload(['goals'], { quiet: true })
   }
 
   async function deleteGoal(id) {
     await api.deleteGoal(id)
-    await reload()
     setGoalModal(null)
     notify('Meta excluída.')
+    reload(['goals'], { quiet: true })
   }
 
-  const openNewTx = (type) => setTxModal({ type })
-  const openEditTx = (tx) => setTxModal({ tx })
-  const signOut = () => supabase.auth.signOut()
+  // Funções estáveis: as telas só são redesenhadas quando os dados delas mudam,
+  // e não a cada aviso ou janela que abre.
+  const openNewTx = useCallback((type) => setTxModal({ type }), [])
+  const openEditTx = useCallback((tx) => setTxModal({ tx }), [])
+  const openNewInv = useCallback(() => setInvModal({}), [])
+  const openEditInv = useCallback((inv) => setInvModal({ inv }), [])
+  const openTargets = useCallback(() => setTargetModal(true), [])
+  const openNewAsset = useCallback(() => setAssetModal({}), [])
+  const openEditAsset = useCallback((asset) => setAssetModal({ asset }), [])
+  const openNewCard = useCallback(() => setCardModal({}), [])
+  const openEditCard = useCallback((card) => setCardModal({ card }), [])
+  const openNewGoal = useCallback(() => setGoalModal({}), [])
+  const openEditGoal = useCallback((goal) => setGoalModal({ goal }), [])
+  const signOut = useCallback(() => supabase.auth.signOut(), [])
 
   let content
   if (status === 'loading') {
@@ -235,7 +293,7 @@ function Shell({ session }) {
         <EmptyState
           title="Não foi possível carregar seus dados."
           action={
-            <button type="button" className="btn primary" onClick={reload}>
+            <button type="button" className="btn primary" onClick={() => reload()}>
               Tentar de novo
             </button>
           }
@@ -246,31 +304,44 @@ function Shell({ session }) {
     )
   } else if (route === 'gastos') {
     content = (
-      <Transactions data={data} month={month} setMonth={setMonth} onAdd={openNewTx} onEdit={openEditTx} />
+      <Transactions
+        data={data}
+        hidden={hidden}
+        month={month}
+        setMonth={setMonth}
+        onAdd={openNewTx}
+        onEdit={openEditTx}
+      />
     )
   } else if (route === 'investimentos') {
     content = (
       <Investments
         data={data}
+        hidden={hidden}
         rate={rate}
-        onAdd={() => setInvModal({})}
-        onEdit={(inv) => setInvModal({ inv })}
-        onEditTargets={() => setTargetModal(true)}
+        onAdd={openNewInv}
+        onEdit={openEditInv}
+        onEditTargets={openTargets}
       />
     )
   } else if (route === 'patrimonio') {
+    content = <Patrimonio data={data} hidden={hidden} rate={rate} onAdd={openNewAsset} onEdit={openEditAsset} />
+  } else if (route === 'simulador') {
+    content = <Simulator data={data} hidden={hidden} rate={rate} />
+  } else if (route === 'cartoes') {
     content = (
-      <Patrimonio
+      <Cards
         data={data}
-        rate={rate}
-        onAdd={() => setAssetModal({})}
-        onEdit={(asset) => setAssetModal({ asset })}
+        hidden={hidden}
+        month={month}
+        setMonth={setMonth}
+        onAddCard={openNewCard}
+        onEditCard={openEditCard}
+        onEdit={openEditTx}
       />
     )
-  } else if (route === 'simulador') {
-    content = <Simulator data={data} rate={rate} />
   } else if (route === 'metas') {
-    content = <Goals data={data} onAdd={() => setGoalModal({})} onEdit={(goal) => setGoalModal({ goal })} />
+    content = <Goals data={data} hidden={hidden} onAdd={openNewGoal} onEdit={openEditGoal} />
   } else if (route === 'ajustes') {
     content = (
       <Settings
@@ -287,6 +358,7 @@ function Shell({ session }) {
     content = (
       <Home
         data={data}
+        hidden={hidden}
         month={month}
         setMonth={setMonth}
         rate={rate}
@@ -358,9 +430,19 @@ function Shell({ session }) {
         <TransactionForm
           initial={txModal.tx}
           defaultType={txModal.type}
+          cards={data.cards}
           onSave={saveTx}
+          onSaveInstallments={saveInstallments}
           onDelete={deleteTx}
           onClose={() => setTxModal(null)}
+        />
+      )}
+      {cardModal && (
+        <CardForm
+          initial={cardModal.card}
+          onSave={saveCard}
+          onDelete={deleteCard}
+          onClose={() => setCardModal(null)}
         />
       )}
       {targetModal && (

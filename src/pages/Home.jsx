@@ -1,9 +1,10 @@
-import { useMemo } from 'react'
-import { MonthlyBars, IN_COLOR, OUT_COLOR } from '../components/charts'
+import { memo, useMemo } from 'react'
+import { MonthlyBars } from '../components/LazyCharts'
+import { IN_COLOR, OUT_COLOR } from '../lib/constants'
 import GoalCard from '../components/GoalCard'
 import { EmptyState, MonthNav, TxRow } from '../components/ui'
 import { goalProgress, lastMonths, monthTotals, portfolio } from '../lib/calc'
-import { brl, monthKey, monthName, monthShort, pct } from '../lib/format'
+import { brl, currentMonth, monthKey, monthName, monthShort, pct } from '../lib/format'
 
 function Ruler({ income, spent }) {
   const share = income > 0 ? Math.min(spent / income, 1) : spent > 0 ? 1 : 0
@@ -28,7 +29,9 @@ function Ruler({ income, spent }) {
   )
 }
 
-export default function Home({ data, month, setMonth, rate, onEdit, onAdd }) {
+function Home({ data, month: monthChosen, setMonth, rate, onEdit, onAdd }) {
+  // A tela inicial vai só até o mês atual (os meses futuros ficam em Gastos).
+  const month = monthChosen > currentMonth() ? currentMonth() : monthChosen
   const totals = useMemo(() => monthTotals(data.transactions, month), [data.transactions, month])
   const chart = useMemo(
     () =>
@@ -176,3 +179,5 @@ export default function Home({ data, month, setMonth, rate, onEdit, onAdd }) {
     </>
   )
 }
+
+export default memo(Home)

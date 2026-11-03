@@ -1,5 +1,5 @@
-import { useId, useMemo, useState } from 'react'
-import { GrowthChart } from '../components/charts'
+import { memo, useId, useMemo, useState } from 'react'
+import { GrowthChart } from '../components/LazyCharts'
 import PatrimonioNav from '../components/PatrimonioNav'
 import { Segmented, Stepper } from '../components/ui'
 import { useCdi } from '../hooks'
@@ -15,7 +15,7 @@ function pointLabel(month) {
   return `${month} meses`
 }
 
-export default function Simulator({ data, rate }) {
+function Simulator({ data, rate }) {
   const cdi = useCdi()
   const sliderId = useId()
   const customId = useId()
@@ -206,3 +206,5 @@ export default function Simulator({ data, rate }) {
     </>
   )
 }
+
+export default memo(Simulator)

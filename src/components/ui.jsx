@@ -234,7 +234,8 @@ export function ChoiceGrid({ legend, name, items, value, onChange }) {
   )
 }
 
-export function MonthNav({ month, onChange }) {
+export function MonthNav({ month, onChange, maxMonth }) {
+  const limit = maxMonth || currentMonth()
   return (
     <div className="monthnav">
       <button
@@ -252,7 +253,7 @@ export function MonthNav({ month, onChange }) {
         type="button"
         className="icon-btn"
         onClick={() => onChange(shiftMonth(month, 1))}
-        disabled={month >= currentMonth()}
+        disabled={month >= limit}
         aria-label="Próximo mês"
       >
         <Icon name="right" />
@@ -336,7 +337,7 @@ export function EmptyState({ title, children, action }) {
   )
 }
 
-export function TxRow({ tx, onClick }) {
+export function TxRow({ tx, onClick, cardName }) {
   const c = categoryOf(tx.category)
   const isIn = tx.type === 'entrada'
   return (
@@ -345,10 +346,15 @@ export function TxRow({ tx, onClick }) {
         {c.icon}
       </span>
       <span className="row-main">
-        <span className="row-title">{tx.description || c.label}</span>
+        <span className="row-title">
+          {tx.description || c.label}
+          {tx.installment_total ? ` (${tx.installment_number}/${tx.installment_total})` : ''}
+        </span>
         <span className="row-sub">
           {tx.description ? `${c.label} · ` : ''}
-          {shortDate(tx.date)}
+          {cardName
+            ? `${cardName}${tx.purchase_date ? ` · comprado em ${shortDate(tx.purchase_date)}` : ''}`
+            : shortDate(tx.date)}
         </span>
       </span>
       <span className={`row-amount ${isIn ? 'pos' : 'neg'}`}>

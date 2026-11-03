@@ -1,12 +1,15 @@
-import { useMemo, useState } from 'react'
-import { Donut } from '../components/charts'
+import { memo, useMemo, useState } from 'react'
+import { Donut } from '../components/LazyCharts'
 import { EmptyState, Icon, MonthNav, Segmented, Tile, TxRow } from '../components/ui'
 import { monthTotals, spendingByCategory } from '../lib/calc'
-import { brl, dayLabel, monthKey, pct } from '../lib/format'
+import { brl, currentMonth, dayLabel, monthKey, pct, shiftMonth } from '../lib/format'
 
-export default function Transactions({ data, month, setMonth, onAdd, onEdit }) {
+function Transactions({ data, month, setMonth, onAdd, onEdit }) {
   const [filter, setFilter] = useState('todos')
+  // Meses que ainda não chegaram mostram o que já foi anotado (como as parcelas).
+  const future = month > currentMonth()
 
+  const cardNames = useMemo(() => Object.fromEntries((data.cards || []).map((c) => [c.id, c.name])), [data.cards])
   const totals = useMemo(() => monthTotals(data.transactions, month), [data.transactions, month])
   const slices = useMemo(() => spendingByCategory(data.transactions, month), [data.transactions, month])
 
@@ -31,17 +34,34 @@ export default function Transactions({ data, month, setMonth, onAdd, onEdit }) {
         </button>
       </header>
 
-      <MonthNav month={month} onChange={setMonth} />
+      {data.cardsReady && (
+        <a className="btn secondary small card-link" href="#/cartoes">
+          Meus cartões e faturas
+        </a>
+      )}
 
-      <div className="tiles">
-        <Tile label="Entrou" value={brl(totals.income)} tone="pos" />
-        <Tile label="Saiu" value={brl(totals.spent)} tone="neg" />
-        <Tile
-          label={totals.balance < 0 ? 'Faltou' : 'Sobrou'}
-          value={brl(Math.abs(totals.balance))}
-          tone={totals.balance < 0 ? 'neg' : ''}
-        />
-      </div>
+      <MonthNav month={month} onChange={setMonth} maxMonth={shiftMonth(currentMonth(), 24)} />
+
+      {future ? (
+        <>
+          <div className="tiles tiles-one">
+            <Tile label="Já comprometido neste mês" value={brl(totals.spent)} tone="neg" />
+          </div>
+          <p className="muted">
+            Este mês ainda não chegou. Aqui aparecem as parcelas e os gastos que você já anotou para ele.
+          </p>
+        </>
+      ) : (
+        <div className="tiles">
+          <Tile label="Entrou" value={brl(totals.income)} tone="pos" />
+          <Tile label="Saiu" value={brl(totals.spent)} tone="neg" />
+          <Tile
+            label={totals.balance < 0 ? 'Faltou' : 'Sobrou'}
+            value={brl(Math.abs(totals.balance))}
+            tone={totals.balance < 0 ? 'neg' : ''}
+          />
+        </div>
+      )}
 
       {slices.length > 0 && (
         <section className="card" aria-labelledby="cat-title">
@@ -99,7 +119,7 @@ export default function Transactions({ data, month, setMonth, onAdd, onEdit }) {
               <h3 className="day-title">{dayLabel(date)}</h3>
               <div className="card rows">
                 {items.map((t) => (
-                  <TxRow key={t.id} tx={t} onClick={onEdit} />
+                  <TxRow key={t.id} tx={t} onClick={onEdit} cardName={cardNames[t.card_id]} />
                 ))}
               </div>
             </div>
@@ -109,3 +129,5 @@ export default function Transactions({ data, month, setMonth, onAdd, onEdit }) {
     </>
   )
 }
+
+export default memo(Transactions)
