@@ -31,16 +31,34 @@ export function explain(err) {
  * Metas, patrimônio e meta da carteira são opcionais: se a tabela ainda não existe,
  * o resto do site segue funcionando.
  */
+const PAGE = 1000
+
+/**
+ * O banco entrega no máximo 1000 linhas por vez. Esta função pede em páginas até acabar,
+ * para nada ficar de fora. `build(from, to)` monta a consulta de cada página.
+ */
+async function fetchPages(build) {
+  const all = []
+  for (let from = 0; ; from += PAGE) {
+    const r = await build(from, from + PAGE - 1)
+    if (r.error) return { error: r.error, data: null }
+    all.push(...r.data)
+    if (r.data.length < PAGE) return { error: null, data: all }
+  }
+}
+
 const FETCHERS = {
   async transactions() {
     const since = `${shiftMonth(currentMonth(), -24)}-01`
-    const r = await supabase
-      .from('transactions')
-      .select('*')
-      .gte('date', since)
-      .order('date', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(5000)
+    const r = await fetchPages((from, to) =>
+      supabase
+        .from('transactions')
+        .select('*')
+        .gte('date', since)
+        .order('date', { ascending: false })
+        .order('created_at', { ascending: false })
+        .range(from, to),
+    )
     if (r.error) throw r.error
     return { transactions: r.data }
   },
@@ -88,6 +106,33 @@ const FETCHERS = {
     const tg = await supabase.from('allocation_targets').select('*')
     return { targets: tg.error ? [] : tg.data, targetsReady: !tg.error }
   },
+}
+
+/** Tudo o que a pessoa tem no banco, sem limite de data, para o backup. Tabela que não existe é pulada. */
+export async function exportEverything() {
+  const tables = [
+    'transactions',
+    'investments',
+    'investment_history',
+    'assets',
+    'asset_history',
+    'goals',
+    'allocation_targets',
+    'cards',
+    'invoice_payments',
+    'recurring',
+  ]
+  const results = await Promise.all(
+    tables.map((name) =>
+      fetchPages((from, to) => supabase.from(name).select('*').order('id', { ascending: true }).range(from, to)),
+    ),
+  )
+  const raw = {}
+  tables.forEach((name, i) => {
+    if (!results[i].error) raw[name] = results[i].data
+    else if (name === 'transactions' || name === 'investments') throw results[i].error
+  })
+  return raw
 }
 
 /** Busca as partes pedidas ao mesmo tempo. Sem argumento, busca tudo. */

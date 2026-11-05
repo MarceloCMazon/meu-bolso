@@ -1542,3 +1542,13 @@ button.goal:hover {
   padding: 1px 10px;
   font-size: 0.8rem;
 }
+
+.link-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--brand);
+  text-decoration: underline;
+  cursor: pointer;
+}
