@@ -2,6 +2,7 @@ import { memo, useMemo, useState } from 'react'
 import { Donut, EvolutionLines } from '../components/LazyCharts'
 import { LINE_INVESTED, LINE_VALUE } from '../lib/constants'
 import Diversification from '../components/Diversification'
+import StockLogo from '../components/StockLogo'
 import PatrimonioNav from '../components/PatrimonioNav'
 import { EmptyState, Icon, Segmented } from '../components/ui'
 import { rankInvestments } from '../lib/extras'
@@ -208,7 +209,13 @@ function Investments({ data, rate, onAdd, onEdit, onEditTargets }) {
                   const gain = now - Number(inv.invested_brl)
                   const gainPct = inv.invested_brl > 0 ? (gain / Number(inv.invested_brl)) * 100 : 0
                   return (
-                    <button type="button" key={inv.id} className="row row-invest" onClick={() => onEdit(inv)}>
+                    <button
+                      type="button"
+                      key={inv.id}
+                      className={`row row-invest ${inv.kind === 'renda_variavel' ? 'with-logo' : ''}`}
+                      onClick={() => onEdit(inv)}
+                    >
+                      {inv.kind === 'renda_variavel' && <StockLogo ticker={inv.ticker} name={inv.name} />}
                       <span className="row-main">
                         <span className="row-title">
                           {inv.name}

@@ -1,0 +1,14 @@
+LOGOS DAS AÇÕES (pasta public/logos)
+
+Cada logo é um arquivo PNG com o nome igual ao código da ação:
+
+  PETR4.png   PETR3.png   VALE3.png   ITUB4.png   BBDC4.png
+  BBAS3.png   BPAC11.png  B3SA3.png   PRIO3.png   AXIA3.png
+  SBSP3.png   EMBJ3.png   WEGE3.png   ABEV3.png   ITSA4.png
+
+Dicas:
+- PNG com fundo transparente, quadrado, de uns 128 x 128 pixels (ou maior, também quadrado).
+- Use os logos oficiais, que cada empresa disponibiliza nas páginas de Relações com Investidores
+  ou de imprensa / marca do próprio site.
+- Se um arquivo estiver faltando, o app mostra o código da ação no lugar. Nada quebra.
+- Para incluir outra ação: coloque o PNG aqui e acrescente o código em src/lib/logos.js.
