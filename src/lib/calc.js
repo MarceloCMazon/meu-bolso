@@ -239,8 +239,21 @@ export function diversification(investments, targets, rate) {
 }
 
 /** Evolução mês a mês: quanto foi investido e quanto valia no fim de cada mês. */
-export function evolution(investments, history, months, rate) {
+export function evolution(investments, history, months, rate, purchases = []) {
   const today = todayISO()
+  // Ações com várias compras: o "investido" cresce a cada compra, no dia em que ela foi feita.
+  const bought = new Map()
+  for (const p of purchases) {
+    if (!bought.has(p.investment_id)) bought.set(p.investment_id, [])
+    bought.get(p.investment_id).push(p)
+  }
+  const investedAt = (inv, end) => {
+    const ps = bought.get(inv.id)
+    if (!ps) return Number(inv.invested_brl)
+    let sum = 0
+    for (const p of ps) if (p.date <= end) sum += Number(p.quantity) * Number(p.unit_price) + Number(p.fees || 0)
+    return Math.round((sum + Number.EPSILON) * 100) / 100
+  }
   const cur = currentMonth()
   return months.map((key) => {
     const end = key === cur ? today : lastDayOfMonth(key)
@@ -248,7 +261,7 @@ export function evolution(investments, history, months, rate) {
     let value = 0
     for (const inv of investments) {
       if (inv.date > end) continue
-      invested += Number(inv.invested_brl)
+      invested += investedAt(inv, end)
       if (key === cur) {
         value += investValue(inv, rate)
         continue
@@ -258,7 +271,7 @@ export function evolution(investments, history, months, rate) {
         if (h.investment_id !== inv.id || h.recorded_at > end) continue
         if (!best || h.recorded_at >= best.recorded_at) best = h
       }
-      value += best ? Number(best.value_brl) : Number(inv.invested_brl)
+      value += best ? Number(best.value_brl) : investedAt(inv, end)
     }
     return { key, invested, value }
   })

@@ -1,3 +1,4 @@
+import { consolidate, purchaseCost } from './purchases'
 import { supabase } from './supabase'
 import { currentMonth, shiftMonth, todayISO } from './format'
 import { round2 } from './calc'
@@ -70,6 +71,10 @@ const FETCHERS = {
     for (const r of [i, h]) if (r.error) throw r.error
     return { investments: i.data, history: h.data }
   },
+  async purchases() {
+    const r = await supabase.from('stock_purchases').select('*').order('date', { ascending: true }).limit(5000)
+    return { purchases: r.error ? [] : r.data, purchasesReady: !r.error }
+  },
   async goals() {
     const g = await supabase.from('goals').select('*').order('created_at', { ascending: true })
     return { goals: g.error ? [] : g.data, goalsReady: !g.error }
@@ -114,6 +119,7 @@ export async function exportEverything() {
     'transactions',
     'investments',
     'investment_history',
+    'stock_purchases',
     'assets',
     'asset_history',
     'goals',
@@ -250,6 +256,12 @@ export async function deleteRecurring(id, alsoFuture) {
   check(await supabase.from('recurring').delete().eq('id', id))
 }
 
+/** Exclui o gasto fixo: apaga este lançamento e os seguintes e para de lançar os próximos meses. */
+export async function stopRecurringFrom(recurringId, fromDate) {
+  check(await supabase.from('transactions').delete().eq('recurring_id', recurringId).gte('date', fromDate))
+  check(await supabase.from('recurring').delete().eq('id', recurringId))
+}
+
 /** Cria os lançamentos dos gastos fixos. Se já existir o do mês, não duplica. */
 export async function addRecurringRows(userId, rows, touched) {
   if (rows.length) {
@@ -315,7 +327,7 @@ export async function setTodayValue(userId, investmentId, value) {
   )
 }
 
-export async function saveInvestment(userId, payload, id) {
+export async function saveInvestment(userId, payload, id, firstPurchase) {
   const today = todayISO()
   if (!id) {
     const { data } = check(
@@ -341,10 +353,83 @@ export async function saveInvestment(userId, payload, id) {
       recorded_at: today,
     })
     check(await supabase.from('investment_history').insert(rows))
+    if (firstPurchase) {
+      check(
+        await supabase
+          .from('stock_purchases')
+          .insert({ ...firstPurchase, user_id: userId, investment_id: data.id }),
+      )
+    }
   } else {
     check(await supabase.from('investments').update(payload).eq('id', id))
     await setTodayValue(userId, id, payload.current_value_brl)
   }
+}
+
+/**
+ * Recalcula a ação a partir das compras: quantidade, total investido, preço médio e data da 1ª compra.
+ * O preço de hoje de cada cota é mantido; só o total acompanha a nova quantidade.
+ * `dateOfChange` (se vier) grava no gráfico quanto estava investido naquele dia.
+ */
+export async function syncStock(userId, investmentId, dateOfChange) {
+  const [invRes, psRes] = await Promise.all([
+    supabase.from('investments').select('*').eq('id', investmentId).single(),
+    supabase.from('stock_purchases').select('*').eq('investment_id', investmentId),
+  ])
+  const inv = check(invRes).data
+  const ps = check(psRes).data
+  const c = consolidate(ps)
+  if (!(c.qty > 0)) return
+  const oldQty = Number(inv.quantity)
+  const unitNow = oldQty > 0 ? Number(inv.current_value_brl) / oldQty : c.avg
+  const value = round2(c.qty * unitNow)
+  check(
+    await supabase
+      .from('investments')
+      .update({
+        quantity: c.qty,
+        unit_price: c.avg,
+        invested_brl: c.invested,
+        current_value_brl: value,
+        date: c.first,
+      })
+      .eq('id', investmentId),
+  )
+  await setTodayValue(userId, investmentId, value)
+
+  const today = todayISO()
+  if (dateOfChange && dateOfChange < today) {
+    const upTo = ps.filter((p) => p.date <= dateOfChange).reduce((sum, p) => sum + purchaseCost(p), 0)
+    check(
+      await supabase.from('investment_history').delete().eq('investment_id', investmentId).eq('recorded_at', dateOfChange),
+    )
+    check(
+      await supabase.from('investment_history').insert({
+        user_id: userId,
+        investment_id: investmentId,
+        value_brl: round2(upTo),
+        recorded_at: dateOfChange,
+      }),
+    )
+  }
+}
+
+export async function savePurchase(userId, payload, id) {
+  if (id) check(await supabase.from('stock_purchases').update(payload).eq('id', id))
+  else check(await supabase.from('stock_purchases').insert({ ...payload, user_id: userId }))
+  await syncStock(userId, payload.investment_id, payload.date)
+}
+
+export async function deletePurchase(userId, purchase) {
+  check(await supabase.from('stock_purchases').delete().eq('id', purchase.id))
+  await syncStock(userId, purchase.investment_id)
+}
+
+/** Atualiza o preço de hoje de cada cota: o valor total é cotas x preço. */
+export async function updateStockPrice(userId, inv, price) {
+  const value = round2(Number(inv.quantity) * price)
+  check(await supabase.from('investments').update({ current_value_brl: value }).eq('id', inv.id))
+  await setTodayValue(userId, inv.id, value)
 }
 
 export async function deleteInvestment(id) {

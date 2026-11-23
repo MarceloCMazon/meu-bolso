@@ -37,10 +37,11 @@ export function backupCsv(raw) {
     ),
     ...section(
       'INVESTIMENTOS',
-      ['Tipo', 'Nome', 'Investido (R$)', 'Valor hoje (R$)', 'Dólares', 'Data da compra', 'Vencimento', 'Cotas', 'Preço pago por cota'],
+      ['Tipo', 'Nome', 'Código', 'Investido (R$)', 'Valor hoje (R$)', 'Dólares', 'Data da compra', 'Vencimento', 'Cotas', 'Preço pago por cota'],
       t('investments').map((i) => [
         kindOf(i.kind).label,
         i.name,
+        i.ticker || '',
         money(i.invested_brl),
         money(i.current_value_brl),
         num(i.usd_amount),
@@ -48,6 +49,18 @@ export function backupCsv(raw) {
         i.maturity_date || '',
         num(i.quantity),
         money(i.unit_price),
+      ]),
+    ),
+    ...section(
+      'COMPRAS DE AÇÕES',
+      ['Investimento', 'Data', 'Quantidade', 'Preço de cada (R$)', 'Custos (R$)', 'Total (R$)'],
+      t('stock_purchases').map((p) => [
+        invName[p.investment_id] || '',
+        p.date,
+        num(p.quantity),
+        money(p.unit_price),
+        money(p.fees),
+        money(Number(p.quantity) * Number(p.unit_price) + Number(p.fees || 0)),
       ]),
     ),
     ...section(

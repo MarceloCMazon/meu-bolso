@@ -5,10 +5,11 @@ import { brl, currentMonth, daysUntil, monthKey, monthLabel, shiftMonth, shortDa
 
 const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100
 
-function statusOf(dates, total, paid) {
+function statusOf(dates, total, paid, prevCloses) {
   const today = todayISO()
   if (paid) return { text: `Paga em ${shortDate(paid.paid_at)}`, tone: 'paid' }
   if (total <= 0) return { text: 'Sem gastos nesta fatura', tone: '' }
+  if (today <= prevCloses) return { text: `Fatura futura · fecha em ${shortDate(dates.closes)}`, tone: '' }
   if (today <= dates.closes) return { text: `Aberta · fecha em ${shortDate(dates.closes)}`, tone: '' }
   if (today <= dates.due) {
     const d = daysUntil(dates.due)
@@ -116,7 +117,7 @@ function Cards({ data, month, setMonth, onAddCard, onEditCard, onEdit, onToggleP
             const total = round2(e?.total || 0)
             const dates = invoiceDates(month, card)
             const paid = paidMap.get(`${card.id}|${month}`)
-            const st = statusOf(dates, total, paid)
+            const st = statusOf(dates, total, paid, invoiceDates(shiftMonth(month, -1), card).closes)
             return (
               <section key={card.id} className="card invoice" aria-label={`Fatura ${card.name}`}>
                 <div className="invoice-head">

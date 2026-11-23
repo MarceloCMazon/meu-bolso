@@ -34,12 +34,12 @@ function Investments({ data, rate, onAdd, onEdit, onEditTargets }) {
 
   const series = useMemo(
     () =>
-      evolution(data.investments, data.history, lastMonths(currentMonth(), 6), rateValue).map((p) => ({
+      evolution(data.investments, data.history, lastMonths(currentMonth(), 6), rateValue, data.purchases).map((p) => ({
         name: monthShort(p.key),
         Investido: p.invested,
         'Valor hoje': p.value,
       })),
-    [data.investments, data.history, rateValue],
+    [data.investments, data.history, data.purchases, rateValue],
   )
 
   return (
@@ -210,17 +210,21 @@ function Investments({ data, rate, onAdd, onEdit, onEditTargets }) {
                   return (
                     <button type="button" key={inv.id} className="row row-invest" onClick={() => onEdit(inv)}>
                       <span className="row-main">
-                        <span className="row-title">{inv.name}</span>
+                        <span className="row-title">
+                          {inv.name}
+                          {inv.ticker ? ` (${inv.ticker})` : ''}
+                        </span>
                         <span className="row-sub">
                           {inv.kind === 'dolar' && inv.usd_amount
                             ? `${usd(inv.usd_amount)} · `
                             : ''}
-                          Investiu {brl(inv.invested_brl)} em {shortDate(inv.date)}
+                          Investiu {brl(inv.invested_brl)}
+                          {Number(inv.quantity) > 0 && data.purchasesReady ? ` desde ${shortDate(inv.date)}` : ` em ${shortDate(inv.date)}`}
                         </span>
                         {Number(inv.quantity) > 0 && (
                           <span className="row-sub">
-                            {qtyFmt(inv.quantity)} {Number(inv.quantity) === 1 ? 'cota' : 'cotas'} · pagou{' '}
-                            {brl(inv.unit_price ?? Number(inv.invested_brl) / Number(inv.quantity))} cada · hoje{' '}
+                            {qtyFmt(inv.quantity)} {Number(inv.quantity) === 1 ? 'cota' : 'cotas'} · preço médio{' '}
+                            {brl(inv.unit_price ?? Number(inv.invested_brl) / Number(inv.quantity))} · hoje{' '}
                             {brl(now / Number(inv.quantity))} cada
                           </span>
                         )}

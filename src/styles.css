@@ -1552,3 +1552,21 @@ button.goal:hover {
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* Compras de ações */
+.stock-tiles {
+  grid-template-columns: repeat(3, 1fr);
+}
+.price-now {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+.list-head h3 {
+  margin: 0;
+}
+@media (max-width: 480px) {
+  .stock-tiles {
+    grid-template-columns: 1fr;
+  }
+}

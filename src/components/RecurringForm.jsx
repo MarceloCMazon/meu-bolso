@@ -3,6 +3,7 @@ import { explain } from '../lib/api'
 import { CATEGORIES_IN, CATEGORIES_OUT } from '../lib/constants'
 import { parseMoney, toInput } from '../lib/format'
 import { recurringStartMonth } from '../lib/extras'
+import { currentMonth, shiftMonth } from '../lib/format'
 import { ChoiceGrid, Field, Modal, MoneyField, Segmented } from './ui'
 
 export default function RecurringForm({ initial, cards = [], onSave, onDelete, onClose }) {
@@ -13,9 +14,14 @@ export default function RecurringForm({ initial, cards = [], onSave, onDelete, o
   const [description, setDescription] = useState(initial?.description || '')
   const [day, setDay] = useState(initial ? String(initial.day) : '')
   const [cardId, setCardId] = useState(initial?.card_id || '')
+  const [startChosen, setStartChosen] = useState(initial?.start_month || null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+
+  // Se o dia deste mês já passou, sugerimos começar no mês que vem (para não repetir o que já foi anotado).
+  const dayNum = Number(day)
+  const startMonth = startChosen || (dayNum >= 1 && dayNum <= 31 ? recurringStartMonth(dayNum) : currentMonth())
 
   const categories = type === 'entrada' ? CATEGORIES_IN : CATEGORIES_OUT
 
@@ -34,6 +40,10 @@ export default function RecurringForm({ initial, cards = [], onSave, onDelete, o
     if (!(value > 0)) return setError('Digite o valor. Exemplo: 1200')
     if (!category) return setError('Escolha uma categoria.')
     if (!(d >= 1 && d <= 31)) return setError('Digite o dia do mês, de 1 a 31. Exemplo: 5')
+    if (!editing && !/^\d{4}-\d{2}$/.test(startMonth)) return setError('Escolha o mês em que começa.')
+    if (!editing && startMonth < shiftMonth(currentMonth(), -12)) {
+      return setError('O início pode ser no máximo 12 meses atrás.')
+    }
     setBusy(true)
     setError('')
     try {
@@ -45,7 +55,7 @@ export default function RecurringForm({ initial, cards = [], onSave, onDelete, o
         day: d,
         card_id: type === 'saida' && cardId ? cardId : null,
       }
-      if (!editing) payload.start_month = recurringStartMonth(d)
+      if (!editing) payload.start_month = startMonth
       await onSave(payload, initial?.id)
     } catch (err) {
       setError(explain(err))
@@ -99,6 +109,11 @@ export default function RecurringForm({ initial, cards = [], onSave, onDelete, o
             onChange={(e) => setDay(e.target.value.replace(/\D/g, '').slice(0, 2))}
           />
         </Field>
+        {!editing && (
+          <Field label="Começa em qual mês?" hint="Se o dia deste mês já passou, começamos no mês que vem. Você pode mudar. Depois repete todo mês, até você excluir.">
+            <input type="month" value={startMonth} onChange={(e) => setStartChosen(e.target.value)} />
+          </Field>
+        )}
         {type === 'saida' && cards.length > 0 && (
           <Field label="Como é pago?">
             <select value={cardId} onChange={(e) => setCardId(e.target.value)}>
@@ -114,7 +129,7 @@ export default function RecurringForm({ initial, cards = [], onSave, onDelete, o
         <p className="muted">
           {editing
             ? 'Mudar o valor, o nome ou a categoria vale para os próximos meses. O que já passou fica como está.'
-            : 'O app lança sozinho todo mês, e você ainda vê os próximos meses em Gastos.'}
+            : 'O app lança sozinho todo mês e continua para sempre, até você excluir. Você vê os próximos meses em Gastos.'}
         </p>
 
         {error && (
@@ -135,13 +150,13 @@ export default function RecurringForm({ initial, cards = [], onSave, onDelete, o
           <div className="danger-zone">
             {confirmDelete ? (
               <>
-                <p>Parar este gasto fixo? O que você quer fazer com os meses que já foram lançados à frente?</p>
+                <p>Excluir este gasto fixo? Ele deixa de ser lançado nos próximos meses. O que fazer com os meses à frente que já estão lançados?</p>
                 <div className="form-actions">
                   <button type="button" className="btn danger" onClick={() => remove(true)} disabled={busy}>
-                    Parar e apagar os próximos
+                    Excluir e apagar os próximos meses
                   </button>
                   <button type="button" className="btn danger" onClick={() => remove(false)} disabled={busy}>
-                    Só parar
+                    Excluir e manter os já lançados
                   </button>
                   <button type="button" className="btn ghost" onClick={() => setConfirmDelete(false)}>
                     Não, manter
@@ -150,7 +165,7 @@ export default function RecurringForm({ initial, cards = [], onSave, onDelete, o
               </>
             ) : (
               <button type="button" className="btn link-danger" onClick={() => setConfirmDelete(true)}>
-                Parar este gasto fixo
+                Excluir este gasto fixo
               </button>
             )}
           </div>

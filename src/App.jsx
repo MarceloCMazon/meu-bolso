@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import InvestmentForm from './components/InvestmentForm'
+import PurchaseForm from './components/PurchaseForm'
+import StockDetail from './components/StockDetail'
 import TransactionForm from './components/TransactionForm'
 import GoalForm from './components/GoalForm'
 import AllocationForm from './components/AllocationForm'
@@ -99,6 +101,8 @@ function Shell({ session }) {
     patrimonioReady: true,
     targets: [],
     targetsReady: true,
+    purchases: [],
+    purchasesReady: true,
     cards: [],
     cardsReady: true,
     payments: [],
@@ -111,6 +115,8 @@ function Shell({ session }) {
   const [toast, setToast] = useState('')
   const [txModal, setTxModal] = useState(null)
   const [invModal, setInvModal] = useState(null)
+  const [stockId, setStockId] = useState(null)
+  const [purchaseModal, setPurchaseModal] = useState(null)
   const [goalModal, setGoalModal] = useState(null)
   const [assetModal, setAssetModal] = useState(null)
   const [targetModal, setTargetModal] = useState(false)
@@ -216,26 +222,51 @@ function Shell({ session }) {
   async function deleteTx(tx, scope) {
     if (scope === 'from' && tx.installment_group) {
       await api.deleteInstallmentsFrom(tx.installment_group, tx.installment_number)
+    } else if (scope === 'recurring' && tx.recurring_id) {
+      await api.stopRecurringFrom(tx.recurring_id, tx.date)
     } else {
       await api.deleteTransaction(tx.id)
     }
     setTxModal(null)
-    notify(scope === 'from' ? 'Parcelas excluídas.' : 'Lançamento excluído.')
-    reload(['transactions'], { quiet: true })
+    notify(
+      scope === 'from' ? 'Parcelas excluídas.' : scope === 'recurring' ? 'Gasto fixo excluído.' : 'Lançamento excluído.',
+    )
+    reload(scope === 'recurring' ? ['transactions', 'recurring'] : ['transactions'], { quiet: true })
   }
 
-  async function saveInv(payload, id) {
-    await api.saveInvestment(userId, payload, id)
+  async function saveInv(payload, id, firstPurchase) {
+    await api.saveInvestment(userId, payload, id, firstPurchase)
     setInvModal(null)
     notify('Investimento salvo.')
-    reload(['investments'], { quiet: true })
+    reload(['investments', 'purchases'], { quiet: true })
   }
 
   async function deleteInv(id) {
     await api.deleteInvestment(id)
     setInvModal(null)
+    setStockId(null)
+    setPurchaseModal(null)
     notify('Investimento excluído.')
-    reload(['investments'], { quiet: true })
+    reload(['investments', 'purchases'], { quiet: true })
+  }
+
+  async function savePurchase(payload, id) {
+    await api.savePurchase(userId, payload, id)
+    setPurchaseModal(null)
+    notify('Compra salva.')
+    await reload(['investments', 'purchases'], { quiet: true })
+  }
+
+  async function deletePurchase(purchase) {
+    await api.deletePurchase(userId, purchase)
+    setPurchaseModal(null)
+    notify('Compra excluída.')
+    await reload(['investments', 'purchases'], { quiet: true })
+  }
+
+  async function updateStockPrice(inv, price) {
+    await api.updateStockPrice(userId, inv, price)
+    await reload(['investments'], { quiet: true })
   }
 
   async function saveTargets(map) {
@@ -323,7 +354,15 @@ function Shell({ session }) {
   const openNewTx = useCallback((type) => setTxModal({ type }), [])
   const openEditTx = useCallback((tx) => setTxModal({ tx }), [])
   const openNewInv = useCallback(() => setInvModal({}), [])
-  const openEditInv = useCallback((inv) => setInvModal({ inv }), [])
+  const stocksReady = data.purchasesReady
+  const openEditInv = useCallback(
+    (inv) => {
+      // Ação com compras abre o histórico; os demais investimentos abrem o formulário de sempre.
+      if (stocksReady && inv.kind === 'renda_variavel' && Number(inv.quantity) > 0) setStockId(inv.id)
+      else setInvModal({ inv })
+    },
+    [stocksReady],
+  )
   const openTargets = useCallback(() => setTargetModal(true), [])
   const openNewAsset = useCallback(() => setAssetModal({}), [])
   const openEditAsset = useCallback((asset) => setAssetModal({ asset }), [])
@@ -335,6 +374,7 @@ function Shell({ session }) {
   const openEditGoal = useCallback((goal) => setGoalModal({ goal }), [])
   const signOut = useCallback(() => supabase.auth.signOut(), [])
 
+  const stockInv = stockId ? data.investments.find((i) => i.id === stockId) : null
   let content
   if (status === 'loading') {
     content = <p className="muted loading">Carregando seus dados…</p>
@@ -532,9 +572,31 @@ function Shell({ session }) {
           onClose={() => setGoalModal(null)}
         />
       )}
+      {stockId && stockInv && (
+        <StockDetail
+          investment={stockInv}
+          purchases={data.purchases.filter((p) => p.investment_id === stockInv.id)}
+          onAddPurchase={() => setPurchaseModal({})}
+          onEditPurchase={(purchase) => setPurchaseModal({ purchase })}
+          onUpdatePrice={updateStockPrice}
+          onEditAsset={() => setInvModal({ inv: stockInv })}
+          onClose={() => setStockId(null)}
+        />
+      )}
+      {purchaseModal && stockInv && (
+        <PurchaseForm
+          investment={stockInv}
+          purchases={data.purchases.filter((p) => p.investment_id === stockInv.id)}
+          initial={purchaseModal.purchase}
+          onSave={savePurchase}
+          onDelete={deletePurchase}
+          onClose={() => setPurchaseModal(null)}
+        />
+      )}
       {invModal && (
         <InvestmentForm
           initial={invModal.inv}
+          purchasesReady={data.purchasesReady}
           rate={rate}
           onSave={saveInv}
           onDelete={deleteInv}

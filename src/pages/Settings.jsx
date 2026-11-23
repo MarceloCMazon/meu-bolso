@@ -117,6 +117,13 @@ export default function Settings({ email, textSize, setTextSize, theme, setTheme
       </section>
 
       <section className="card setting">
+        <h2>Sobre o Nosso Bolso</h2>
+        <p className="muted">
+          Aplicativo feito por <strong>Marcelo Mazon</strong>, para cuidar do dinheiro da família de um jeito simples.
+        </p>
+      </section>
+
+      <section className="card setting">
         <h2>Sua conta</h2>
         <p className="muted">
           Você entrou como <strong>{email}</strong>

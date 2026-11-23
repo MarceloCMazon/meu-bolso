@@ -26,6 +26,7 @@ export default function TransactionForm({
 }) {
   const editing = Boolean(initial)
   const isInstallment = Boolean(initial?.installment_group)
+  const isFixed = Boolean(initial?.recurring_id)
   const [type, setType] = useState(initial?.type || defaultType)
   const [amount, setAmount] = useState(initial ? toInput(initial.amount) : '')
   const [category, setCategory] = useState(initial?.category || '')
@@ -78,7 +79,7 @@ export default function TransactionForm({
           category,
           description: note,
           date: card ? invoiceDueDate(date, card, i) : addMonthsISO(date, i),
-          ...(card ? { card_id: card.id, purchase_date: addMonthsISO(date, i) } : {}),
+          ...(card ? { card_id: card.id, purchase_date: date } : {}),
           installment_group: group,
           installment_number: i + 1,
           installment_total: n,
@@ -125,6 +126,13 @@ export default function TransactionForm({
           <p className="muted">
             Esta é a <strong>parcela {initial.installment_number} de {initial.installment_total}</strong> de uma compra
             parcelada. O que você mudar aqui vale só para esta parcela.
+          </p>
+        )}
+
+        {isFixed && (
+          <p className="muted">
+            Este lançamento vem de um <strong>gasto fixo</strong>. O que você mudar aqui vale só para este mês. Para mudar
+            todos os meses, edite em Gastos &gt; Gastos fixos.
           </p>
         )}
 
@@ -247,6 +255,21 @@ export default function TransactionForm({
                         Esta e as próximas
                       </button>
                     )}
+                    <button type="button" className="btn ghost" onClick={() => setConfirmDelete(false)}>
+                      Não, manter
+                    </button>
+                  </div>
+                </>
+              ) : isFixed ? (
+                <>
+                  <p>Este lançamento se repete todo mês. O que você quer excluir?</p>
+                  <div className="form-actions">
+                    <button type="button" className="btn danger" onClick={() => remove('one')} disabled={busy}>
+                      Só este mês
+                    </button>
+                    <button type="button" className="btn danger" onClick={() => remove('recurring')} disabled={busy}>
+                      Este e todos os próximos
+                    </button>
                     <button type="button" className="btn ghost" onClick={() => setConfirmDelete(false)}>
                       Não, manter
                     </button>

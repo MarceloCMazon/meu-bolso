@@ -11,9 +11,10 @@ export function recurringStartMonth(day, today = todayISO()) {
 
 /**
  * Lançamentos que ainda faltam criar para os gastos fixos: do mês seguinte ao último já criado
- * até 3 meses à frente. `cards` serve para os fixos que são cobrados no cartão.
+ * até 12 meses à frente. Cada vez que o app abre, ele repõe os meses que faltam; por isso o gasto fixo
+ * continua para sempre, até a pessoa excluir. `cards` serve para os fixos que são cobrados no cartão.
  */
-export function recurringRows(rules, cards, today = todayISO(), ahead = 3) {
+export function recurringRows(rules, cards, today = todayISO(), ahead = 12) {
   const horizon = shiftMonth(monthKey(today), ahead)
   const rows = []
   const touched = []
