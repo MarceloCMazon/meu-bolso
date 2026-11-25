@@ -1605,3 +1605,12 @@ button.goal:hover {
   letter-spacing: 0.02em;
   color: var(--muted);
 }
+
+/* Histórico */
+.hist-filters{display:flex;flex-direction:column;gap:12px}
+.hist-grid{display:grid;grid-template-columns:1fr;gap:12px}
+@media (min-width:640px){.hist-grid{grid-template-columns:1fr 1fr}}
+.hist-month{margin:14px 4px 4px;font-size:.95rem;color:var(--muted)}
+.hist-month:first-child{margin-top:0}
+a.icon-btn{text-decoration:none}
+a.eye-wide{text-decoration:none;display:flex;align-items:center;gap:8px}

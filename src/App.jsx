@@ -18,6 +18,7 @@ import Cards from './pages/Cards'
 import RecurringForm from './components/RecurringForm'
 import Recurring from './pages/Recurring'
 import Goals from './pages/Goals'
+import History from './pages/History'
 import Home from './pages/Home'
 import Investments from './pages/Investments'
 import Patrimonio from './pages/Patrimonio'
@@ -432,6 +433,8 @@ function Shell({ session }) {
         onTogglePaid={togglePaid}
       />
     )
+  } else if (route === 'historico') {
+    content = <History data={data} onEdit={openEditTx} onEditInv={openEditInv} />
   } else if (route === 'fixos') {
     content = <Recurring data={data} onAdd={openNewRec} onEdit={openEditRec} />
   } else if (route === 'metas') {
@@ -488,6 +491,12 @@ function Shell({ session }) {
         </nav>
         <div className="side-foot">
           <EyeToggle hidden={hidden} onToggle={toggleHidden} withLabel />
+          {route === 'inicio' && (
+            <a className="btn ghost small eye-wide" href="#/historico">
+              <Icon name="history" size={22} />
+              Histórico
+            </a>
+          )}
           <p className="side-label">Tamanho da letra</p>
           <TextSize name="textsize-side" value={textSize} onChange={setTextSize} />
         </div>
@@ -496,6 +505,11 @@ function Shell({ session }) {
       <header className="topbar">
         <Brand small />
         <div className="topbar-tools">
+          {route === 'inicio' && (
+            <a className="icon-btn" href="#/historico" aria-label="Histórico de movimentações" title="Histórico">
+              <Icon name="history" />
+            </a>
+          )}
           <EyeToggle hidden={hidden} onToggle={toggleHidden} />
           <TextSize name="textsize-top" value={textSize} onChange={setTextSize} />
         </div>

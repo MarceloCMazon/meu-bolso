@@ -24,7 +24,7 @@ export function useLocalSetting(key, initial) {
   return [value, set]
 }
 
-export const ROUTES = ['inicio', 'gastos', 'patrimonio', 'investimentos', 'simulador', 'metas', 'cartoes', 'fixos', 'ajustes']
+export const ROUTES = ['inicio', 'gastos', 'patrimonio', 'investimentos', 'simulador', 'metas', 'cartoes', 'fixos', 'historico', 'ajustes']
 
 const readRoute = () => {
   const h = window.location.hash.replace(/^#\/?/, '')
