@@ -31,6 +31,15 @@ export function parseMoney(text) {
 /** Número -> texto para campos de edição ("1234,5") */
 export const toInput = (n) => (n === null || n === undefined ? '' : String(n).replace('.', ','))
 
+/** Código único gerado no aparelho: serve para o banco reconhecer um pedido repetido. */
+export function newId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
+  })
+}
+
 export function todayISO() {
   const d = new Date()
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`

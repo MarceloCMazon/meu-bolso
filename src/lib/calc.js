@@ -1,4 +1,4 @@
-import { categoryOf, CHART_COLORS, KINDS } from './constants'
+import { categoryOf, CHART_COLORS, INVEST_CATEGORY, KINDS } from './constants'
 import { currentMonth, lastDayOfMonth, monthKey, shiftMonth, todayISO } from './format'
 
 export const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100
@@ -6,19 +6,22 @@ export const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 10
 export function monthTotals(transactions, month) {
   let income = 0
   let spent = 0
+  let invested = 0
   for (const t of transactions) {
     if (monthKey(t.date) !== month) continue
     if (t.type === 'entrada') income += Number(t.amount)
+    else if (t.category === INVEST_CATEGORY) invested += Number(t.amount)
     else spent += Number(t.amount)
   }
-  return { income, spent, balance: income - spent }
+  // O que foi investido sai do saldo, mas não é gasto.
+  return { income, spent, invested, balance: income - spent - invested }
 }
 
 export function spendingByCategory(transactions, month) {
   const map = new Map()
   let total = 0
   for (const t of transactions) {
-    if (t.type !== 'saida' || monthKey(t.date) !== month) continue
+    if (t.type !== 'saida' || t.category === INVEST_CATEGORY || monthKey(t.date) !== month) continue
     const v = Number(t.amount)
     total += v
     map.set(t.category, (map.get(t.category) || 0) + v)
@@ -116,9 +119,11 @@ export function goalProgress(goal, transactions, investments, today = todayISO()
 
   if (goal.kind === 'investir_mensal') {
     const cur = monthKey(today)
-    const done = investments
-      .filter((i) => monthKey(i.date) === cur)
-      .reduce((s, i) => s + Number(i.invested_brl), 0)
+    // Conta só o dinheiro NOVO que saiu para investir neste mês (cada aporte uma vez, pela data real).
+    // Investimentos que você já tinha, compras antigas e mudanças de valor não entram.
+    const done = transactions
+      .filter((t) => t.category === INVEST_CATEGORY && t.type === 'saida' && monthKey(t.date) === cur)
+      .reduce((s, t) => s + Number(t.amount), 0)
     const reached = done >= target
     return {
       kind: goal.kind,
@@ -135,7 +140,7 @@ export function goalProgress(goal, transactions, investments, today = todayISO()
   const start = goal.start_date
   const end = goal.end_date
   const spent = transactions
-    .filter((t) => t.type === 'saida' && t.date >= start && t.date <= end)
+    .filter((t) => t.type === 'saida' && t.category !== INVEST_CATEGORY && t.date >= start && t.date <= end)
     .reduce((s, t) => s + Number(t.amount), 0)
   const finished = today > end
   const notStarted = today < start

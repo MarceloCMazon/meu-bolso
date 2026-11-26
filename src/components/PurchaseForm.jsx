@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { explain } from '../lib/api'
 import { round2 } from '../lib/calc'
-import { brl, parseMoney, parseQty, todayISO, toInput } from '../lib/format'
+import { brl, newId, parseMoney, parseQty, todayISO, toInput } from '../lib/format'
 import { consolidate } from '../lib/purchases'
-import { Field, Modal, MoneyField } from './ui'
+import { Field, Modal, MoneyField, Segmented } from './ui'
 
 /** Adicionar (ou corrigir) uma compra de uma ação que já está na carteira. */
 export default function PurchaseForm({ investment, purchases, initial, onSave, onDelete, onClose }) {
@@ -12,6 +12,9 @@ export default function PurchaseForm({ investment, purchases, initial, onSave, o
   const [qty, setQty] = useState(initial ? toInput(Number(initial.quantity)) : '')
   const [price, setPrice] = useState(initial ? toInput(Number(initial.unit_price)) : '')
   const [fees, setFees] = useState(initial && Number(initial.fees) > 0 ? toInput(Number(initial.fees)) : '')
+  // Compra nova = saiu dinheiro agora (diminui o saldo e conta na meta). Compra antiga = de antes do app.
+  const [origin, setOrigin] = useState('novo')
+  const [requestId] = useState(newId)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -38,7 +41,12 @@ export default function PurchaseForm({ investment, purchases, initial, onSave, o
     setBusy(true)
     setError('')
     try {
-      await onSave({ investment_id: investment.id, date, quantity: q, unit_price: p, fees: f }, initial?.id)
+      const payload = { investment_id: investment.id, date, quantity: q, unit_price: p, fees: f }
+      if (!editing) {
+        payload.id = requestId
+        if (origin === 'novo') payload.is_new = true
+      }
+      await onSave(payload, initial?.id)
     } catch (err) {
       setError(explain(err))
       setBusy(false)
@@ -65,6 +73,29 @@ export default function PurchaseForm({ investment, purchases, initial, onSave, o
             {investment.ticker ? ` (${investment.ticker})` : ''}
           </strong>
         </p>
+        {!editing && (
+          <>
+            <Segmented
+              legend="Esta compra é"
+              name="purchase-origin"
+              value={origin}
+              onChange={setOrigin}
+              options={[
+                { value: 'novo', label: 'Nova' },
+                { value: 'existente', label: 'Antiga (já tinha)' },
+              ]}
+            />
+            <p className="field-hint">
+              {origin === 'novo'
+                ? 'Comprou agora: sai do seu saldo, aparece no histórico e conta na meta do mês.'
+                : 'Compra de antes de usar o app: só atualiza quantidade e preço médio. Não mexe no saldo, no histórico nem na meta.'}
+            </p>
+          </>
+        )}
+        {editing && initial.is_new && (
+          <p className="field-hint">Compra nova: se corrigir o valor ou a data, o lançamento dela no histórico também muda.</p>
+        )}
+
         <Field label="Data da compra">
           <input type="date" value={date} max={todayISO()} onChange={(e) => setDate(e.target.value)} />
         </Field>

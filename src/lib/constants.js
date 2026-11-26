@@ -20,7 +20,11 @@ export const CATEGORIES_IN = [
   { id: 'outros_entrada', label: 'Outros', icon: '📦' },
 ]
 
-const ALL = [...CATEGORIES_OUT, ...CATEGORIES_IN]
+/** Dinheiro que saiu para um investimento novo. Não é gasto: não entra em "Saiu" nem no limite de gastos. */
+export const INVEST_CATEGORY = 'investimento'
+export const isAporte = (t) => t.category === INVEST_CATEGORY
+
+const ALL = [...CATEGORIES_OUT, ...CATEGORIES_IN, { id: INVEST_CATEGORY, label: 'Investimento', icon: '📈' }]
 export const categoryOf = (id) =>
   ALL.find((c) => c.id === id) || { id, label: 'Outros', icon: '📦' }
 

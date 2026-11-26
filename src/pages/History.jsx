@@ -1,9 +1,7 @@
 import { memo, useMemo, useState } from 'react'
 import { EmptyState, Field, Tile, TxRow } from '../components/ui'
-import StockLogo from '../components/StockLogo'
-import { brl, currentMonth, lastDayOfMonth, monthKey, monthLabel, shiftMonth, shortDate, todayISO, addMonthsISO } from '../lib/format'
+import { addMonthsISO, brl, currentMonth, lastDayOfMonth, monthKey, monthLabel, shiftMonth, todayISO } from '../lib/format'
 import { MOVEMENT_TYPES, buildMovements, filterMovements, sortMovements, summarize } from '../lib/history'
-import { qtyFmt } from '../lib/format'
 
 const PAGE = 60
 const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
@@ -43,31 +41,7 @@ function rangeOf(period, pickMonth, pickYear, today) {
   return {}
 }
 
-function InvestmentRow({ m, onClick }) {
-  const inv = m.ref
-  const p = m.purchase
-  return (
-    <button type="button" className={`row row-invest ${inv.kind === 'renda_variavel' ? 'with-logo' : ''}`} onClick={() => onClick(inv)}>
-      {inv.kind === 'renda_variavel' ? (
-        <StockLogo ticker={inv.ticker} name={inv.name} />
-      ) : (
-        <span className="row-icon" aria-hidden="true">
-          📈
-        </span>
-      )}
-      <span className="row-main">
-        <span className="row-title">{p ? `Compra de ${inv.ticker || inv.name}` : inv.name}</span>
-        <span className="row-sub">
-          Investimento · {shortDate(m.date)}
-          {p ? ` · ${qtyFmt(p.quantity)} × ${brl(p.unit_price)}` : ''}
-        </span>
-      </span>
-      <span className="row-amount">{brl(m.amount)}</span>
-    </button>
-  )
-}
-
-function History({ data, onEdit, onEditInv }) {
+function History({ data, onEdit }) {
   const today = todayISO()
   const [type, setType] = useState('todos')
   const [period, setPeriod] = useState('tudo')
@@ -80,13 +54,8 @@ function History({ data, onEdit, onEditInv }) {
 
   const all = useMemo(
     () =>
-      buildMovements({
-        transactions: data.transactions,
-        investments: data.investments,
-        purchases: data.purchases,
-        purchasesReady: data.purchasesReady,
-      }),
-    [data.transactions, data.investments, data.purchases, data.purchasesReady],
+buildMovements({ transactions: data.transactions }),
+    [data.transactions],
   )
   const cardNames = useMemo(() => new Map(data.cards.map((c) => [c.id, c.name])), [data.cards])
 
@@ -120,11 +89,7 @@ function History({ data, onEdit, onEditInv }) {
       lastMonth = k
     }
     rows.push(
-      m.source === 'tx' ? (
-        <TxRow key={m.id} tx={m.ref} onClick={onEdit} cardName={m.ref.card_id ? cardNames.get(m.ref.card_id) : undefined} />
-      ) : (
-        <InvestmentRow key={m.id} m={m} onClick={onEditInv} />
-      ),
+      <TxRow key={m.id} tx={m.ref} onClick={onEdit} cardName={m.ref.card_id ? cardNames.get(m.ref.card_id) : undefined} />,
     )
   }
 

@@ -1614,3 +1614,10 @@ button.goal:hover {
 .hist-month:first-child{margin-top:0}
 a.icon-btn{text-decoration:none}
 a.eye-wide{text-decoration:none;display:flex;align-items:center;gap:8px}
+
+.hero-stats.has-invest{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
+
+.aportes{display:flex;flex-direction:column;gap:8px}
+.aportes h3{margin:0}
+.aporte-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:2px solid var(--line);border-radius:14px}
+.aporte-actions{display:flex;gap:8px}

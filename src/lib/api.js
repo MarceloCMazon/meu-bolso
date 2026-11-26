@@ -330,13 +330,14 @@ export async function setTodayValue(userId, investmentId, value) {
 export async function saveInvestment(userId, payload, id, firstPurchase) {
   const today = todayISO()
   if (!id) {
-    const { data } = check(
-      await supabase
-        .from('investments')
-        .insert({ ...payload, user_id: userId })
-        .select()
-        .single(),
-    )
+    const res = await supabase
+      .from('investments')
+      .insert({ ...payload, user_id: userId })
+      .select()
+      .single()
+    // Mesmo pedido repetido (clique duplo, internet que falhou e voltou): já foi gravado, não grava de novo.
+    if (res.error?.code === '23505') return
+    const { data } = check(res)
     const rows = []
     if (payload.date < today) {
       rows.push({
@@ -416,8 +417,34 @@ export async function syncStock(userId, investmentId, dateOfChange) {
 
 export async function savePurchase(userId, payload, id) {
   if (id) check(await supabase.from('stock_purchases').update(payload).eq('id', id))
-  else check(await supabase.from('stock_purchases').insert({ ...payload, user_id: userId }))
+  else {
+    const res = await supabase.from('stock_purchases').insert({ ...payload, user_id: userId })
+    // Pedido repetido: a compra já foi gravada (e o lançamento dela também). Só confere os totais.
+    if (res.error && res.error.code !== '23505') throw res.error
+  }
   await syncStock(userId, payload.investment_id, payload.date)
+}
+
+/** Desfaz um aporte: o valor sai do investimento, volta ao saldo e deixa de contar na meta. */
+export async function undoContribution(txId) {
+  check(await supabase.rpc('undo_contribution', { p_tx: txId, p_today: todayISO() }))
+}
+
+/**
+ * Novo aporte em renda fixa, dólar ou outros. O banco faz tudo de uma vez (investimento, saldo,
+ * histórico) e, com o mesmo `id`, nunca conta o mesmo aporte duas vezes.
+ */
+export async function addContribution({ id, investmentId, amount, date, usd }) {
+  check(
+    await supabase.rpc('invest_contribution', {
+      p_id: id,
+      p_investment: investmentId,
+      p_amount: amount,
+      p_date: date,
+      p_today: todayISO(),
+      p_usd: usd ?? null,
+    }),
+  )
 }
 
 export async function deletePurchase(userId, purchase) {

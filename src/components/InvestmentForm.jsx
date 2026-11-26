@@ -2,17 +2,32 @@ import { useState } from 'react'
 import { explain } from '../lib/api'
 import { round2 } from '../lib/calc'
 import { KINDS, kindOf } from '../lib/constants'
-import { brl, brlOpen, parseMoney, parseQty, todayISO, toInput } from '../lib/format'
-import { ChoiceGrid, Field, Modal, MoneyField } from './ui'
+import { brl, brlOpen, newId, parseMoney, parseQty, shortDate, todayISO, toInput } from '../lib/format'
+import { ChoiceGrid, Field, Modal, MoneyField, Segmented } from './ui'
 
 const round4 = (n) => Math.round((Number(n) + Number.EPSILON) * 10000) / 10000
 
-export default function InvestmentForm({ initial, rate, purchasesReady, onSave, onDelete, onClose }) {
+export default function InvestmentForm({
+  initial,
+  rate,
+  purchasesReady,
+  aportes = [],
+  onSave,
+  onDelete,
+  onAporte,
+  onUndoAporte,
+  onClose,
+}) {
   const editing = Boolean(initial)
   // Registros lidos do banco já trazem as colunas novas (vazias nos antigos).
   const hasNewColumns = Boolean(initial && 'maturity_date' in initial)
   const hadQty = Number(initial?.quantity) > 0
 
+  // Novo = dinheiro que sai do saldo agora. Já tinha = patrimônio de antes do app (não mexe no saldo nem na meta).
+  const [origin, setOrigin] = useState('novo')
+  // Um código por tela aberta: se o "Salvar" for tocado duas vezes, o banco grava uma vez só.
+  const [requestId] = useState(newId)
+  const isNewMoney = !editing && origin === 'novo'
   const [kind, setKind] = useState(initial?.kind || 'renda_fixa')
   const [name, setName] = useState(initial?.name || '')
   const [invested, setInvested] = useState(initial ? toInput(initial.invested_brl) : '')
@@ -38,6 +53,7 @@ export default function InvestmentForm({ initial, rate, purchasesReady, onSave, 
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [undoId, setUndoId] = useState('')
 
   const isDollar = kind === 'dolar'
   const isFixed = kind === 'renda_fixa'
@@ -127,6 +143,14 @@ export default function InvestmentForm({ initial, rate, purchasesReady, onSave, 
       if (isFixed && maturity) payload.maturity_date = maturity
     }
 
+    if (!editing) {
+      payload.id = requestId
+      if (isNewMoney) {
+        if (firstPurchase) firstPurchase = { ...firstPurchase, id: newId(), is_new: true }
+        else payload.is_new = true
+      }
+    }
+
     setBusy(true)
     setError('')
     try {
@@ -134,6 +158,18 @@ export default function InvestmentForm({ initial, rate, purchasesReady, onSave, 
     } catch (err) {
       setError(explain(err))
       setBusy(false)
+    }
+  }
+
+  async function undo(id) {
+    setBusy(true)
+    setError('')
+    try {
+      await onUndoAporte(id)
+    } catch (err) {
+      setError(explain(err))
+      setBusy(false)
+      setUndoId('')
     }
   }
 
@@ -151,6 +187,26 @@ export default function InvestmentForm({ initial, rate, purchasesReady, onSave, 
   return (
     <Modal title={editing ? 'Editar investimento' : 'Novo investimento'} onClose={onClose}>
       <form onSubmit={submit} className="form" noValidate>
+        {!editing && (
+          <>
+            <Segmented
+              legend="Este investimento é"
+              name="inv-origin"
+              value={origin}
+              onChange={setOrigin}
+              options={[
+                { value: 'novo', label: 'Novo' },
+                { value: 'existente', label: 'Já tinha antes' },
+              ]}
+            />
+            <p className="field-hint">
+              {origin === 'novo'
+                ? 'Dinheiro que você investiu agora: sai do seu saldo, aparece no histórico e conta na meta do mês.'
+                : 'Investimento de antes de usar o app: entra só no patrimônio. Não mexe no saldo, no histórico nem na meta.'}
+            </p>
+          </>
+        )}
+
         {!locked && (
           <>
             <ChoiceGrid legend="Tipo" name="inv-kind" items={KINDS} value={kind} onChange={setKind} />
@@ -300,11 +356,50 @@ export default function InvestmentForm({ initial, rate, purchasesReady, onSave, 
           </button>
         </div>
 
+        {editing && !locked && !isVariable && onAporte && (
+          <button type="button" className="btn secondary" onClick={() => onAporte(initial)} disabled={busy}>
+            Fazer novo aporte
+          </button>
+        )}
+
+        {editing && !isVariable && aportes.length > 0 && (
+          <div className="aportes">
+            <h3>Aportes novos</h3>
+            <p className="field-hint">Para desfazer um aporte, toque em Excluir. O dinheiro volta para o seu saldo.</p>
+            {aportes.map((a) => (
+              <div key={a.id} className="aporte-row">
+                <span>
+                  <strong>{brl(a.amount)}</strong>
+                  <br />
+                  <small className="muted">{shortDate(a.date)}</small>
+                </span>
+                {undoId === a.id ? (
+                  <span className="aporte-actions">
+                    <button type="button" className="btn danger small" onClick={() => undo(a.id)} disabled={busy}>
+                      Sim, excluir
+                    </button>
+                    <button type="button" className="btn ghost small" onClick={() => setUndoId('')} disabled={busy}>
+                      Não
+                    </button>
+                  </span>
+                ) : (
+                  <button type="button" className="btn link-danger" onClick={() => setUndoId(a.id)} disabled={busy}>
+                    Excluir
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         {editing && (
           <div className="danger-zone">
             {confirmDelete ? (
               <>
-                <p>Excluir este investimento e o histórico dele? Não dá para desfazer.</p>
+                <p>
+                  Excluir este investimento e o histórico dele? Não dá para desfazer. Se ele teve aportes novos, esses
+                  lançamentos também saem do histórico e o dinheiro volta para o saldo.
+                </p>
                 <div className="form-actions">
                   <button type="button" className="btn danger" onClick={remove} disabled={busy}>
                     Sim, excluir

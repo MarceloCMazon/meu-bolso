@@ -67,7 +67,7 @@ function Home({ data, month: monthChosen, setMonth, rate, onEdit, onAdd }) {
         </h1>
         <p className={`hero-number ${negative ? 'is-negative' : ''}`}>{brl(Math.abs(totals.balance))}</p>
         <Ruler income={totals.income} spent={totals.spent} />
-        <dl className="hero-stats">
+        <dl className={`hero-stats ${totals.invested > 0 ? 'has-invest' : ''}`}>
           <div>
             <dt>Entrou</dt>
             <dd className="hero-in">{brl(totals.income)}</dd>
@@ -76,6 +76,12 @@ function Home({ data, month: monthChosen, setMonth, rate, onEdit, onAdd }) {
             <dt>Saiu</dt>
             <dd className="hero-out">{brl(totals.spent)}</dd>
           </div>
+          {totals.invested > 0 && (
+            <div>
+              <dt>Investiu</dt>
+              <dd>{brl(totals.invested)}</dd>
+            </div>
+          )}
         </dl>
         <button type="button" className="btn gold" onClick={() => onAdd('saida')}>
           Lançar um gasto

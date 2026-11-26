@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import InvestmentForm from './components/InvestmentForm'
+import AporteForm from './components/AporteForm'
 import PurchaseForm from './components/PurchaseForm'
 import StockDetail from './components/StockDetail'
 import TransactionForm from './components/TransactionForm'
@@ -118,6 +119,7 @@ function Shell({ session }) {
   const [invModal, setInvModal] = useState(null)
   const [stockId, setStockId] = useState(null)
   const [purchaseModal, setPurchaseModal] = useState(null)
+  const [aporteModal, setAporteModal] = useState(null)
   const [goalModal, setGoalModal] = useState(null)
   const [assetModal, setAssetModal] = useState(null)
   const [targetModal, setTargetModal] = useState(false)
@@ -239,7 +241,7 @@ function Shell({ session }) {
     await api.saveInvestment(userId, payload, id, firstPurchase)
     setInvModal(null)
     notify('Investimento salvo.')
-    reload(['investments', 'purchases'], { quiet: true })
+    reload(['investments', 'purchases', 'transactions'], { quiet: true })
   }
 
   async function deleteInv(id) {
@@ -248,21 +250,36 @@ function Shell({ session }) {
     setStockId(null)
     setPurchaseModal(null)
     notify('Investimento excluído.')
-    reload(['investments', 'purchases'], { quiet: true })
+    reload(['investments', 'purchases', 'transactions'], { quiet: true })
+  }
+
+  async function saveAporte(payload) {
+    await api.addContribution(payload)
+    setAporteModal(null)
+    setInvModal(null)
+    notify('Aporte salvo.')
+    reload(['investments', 'transactions'], { quiet: true })
+  }
+
+  async function undoAporte(txId) {
+    await api.undoContribution(txId)
+    setInvModal(null)
+    notify('Aporte excluído. O dinheiro voltou para o saldo.')
+    reload(['investments', 'transactions'], { quiet: true })
   }
 
   async function savePurchase(payload, id) {
     await api.savePurchase(userId, payload, id)
     setPurchaseModal(null)
     notify('Compra salva.')
-    await reload(['investments', 'purchases'], { quiet: true })
+    await reload(['investments', 'purchases', 'transactions'], { quiet: true })
   }
 
   async function deletePurchase(purchase) {
     await api.deletePurchase(userId, purchase)
     setPurchaseModal(null)
     notify('Compra excluída.')
-    await reload(['investments', 'purchases'], { quiet: true })
+    await reload(['investments', 'purchases', 'transactions'], { quiet: true })
   }
 
   async function updateStockPrice(inv, price) {
@@ -353,7 +370,7 @@ function Shell({ session }) {
   // Funções estáveis: as telas só são redesenhadas quando os dados delas mudam,
   // e não a cada aviso ou janela que abre.
   const openNewTx = useCallback((type) => setTxModal({ type }), [])
-  const openEditTx = useCallback((tx) => setTxModal({ tx }), [])
+
   const openNewInv = useCallback(() => setInvModal({}), [])
   const stocksReady = data.purchasesReady
   const openEditInv = useCallback(
@@ -363,6 +380,20 @@ function Shell({ session }) {
       else setInvModal({ inv })
     },
     [stocksReady],
+  )
+  const investments = data.investments
+  const openEditTx = useCallback(
+    (tx) => {
+      // Dinheiro que saiu para investir não se edita aqui: abre o investimento a que pertence.
+      if (tx.category === 'investimento') {
+        const inv = investments.find((i) => i.id === tx.investment_id)
+        if (inv) openEditInv(inv)
+        else notify('Este lançamento é de um investimento que não existe mais.')
+        return
+      }
+      setTxModal({ tx })
+    },
+    [investments, openEditInv, notify],
   )
   const openTargets = useCallback(() => setTargetModal(true), [])
   const openNewAsset = useCallback(() => setAssetModal({}), [])
@@ -434,7 +465,7 @@ function Shell({ session }) {
       />
     )
   } else if (route === 'historico') {
-    content = <History data={data} onEdit={openEditTx} onEditInv={openEditInv} />
+    content = <History data={data} onEdit={openEditTx} />
   } else if (route === 'fixos') {
     content = <Recurring data={data} onAdd={openNewRec} onEdit={openEditRec} />
   } else if (route === 'metas') {
@@ -607,6 +638,14 @@ function Shell({ session }) {
           onClose={() => setPurchaseModal(null)}
         />
       )}
+      {aporteModal && (
+        <AporteForm
+          investment={aporteModal.inv}
+          rate={rate}
+          onSave={saveAporte}
+          onClose={() => setAporteModal(null)}
+        />
+      )}
       {invModal && (
         <InvestmentForm
           initial={invModal.inv}
@@ -614,6 +653,15 @@ function Shell({ session }) {
           rate={rate}
           onSave={saveInv}
           onDelete={deleteInv}
+          onAporte={(inv) => setAporteModal({ inv })}
+          onUndoAporte={undoAporte}
+          aportes={
+            invModal.inv
+              ? data.transactions.filter(
+                  (t) => t.investment_id === invModal.inv.id && !t.purchase_id && t.category === 'investimento',
+                )
+              : []
+          }
           onClose={() => setInvModal(null)}
         />
       )}
